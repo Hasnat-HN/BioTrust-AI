@@ -639,6 +639,7 @@ html[data-theme="dark"] .results-gate-mark { border-color: #436675; background: 
 @media (max-width: 560px) {
   .topbar { height: 58px; }
   .top-actions .icon-btn { display: none; }
+  .top-actions .theme-toggle { display: block; }
   .export-btn { padding: 0 10px; }
   h1 { font-size: 36px; }
   .stat-grid, .method-grid, .form-grid, .check-grid, .plan-aside, .provenance-aside, .context-columns, .method-detail-grid, .method-form-grid, .execution-files, .execution-fields, .execution-aside { grid-template-columns: 1fr; }
