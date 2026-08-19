@@ -44,6 +44,7 @@ def test_controlled_execution_returns_audited_results(monkeypatch: pytest.Monkey
         Path(command[6]).write_text("version_R\t4.6.0\nversion_edgeR\t4.8.0\nretained_feature_count\t2\n", encoding="utf-8")
         return subprocess.CompletedProcess(command, 0, "", "")
 
+    monkeypatch.setattr(execution.shutil, "which", lambda _: "/usr/bin/Rscript")
     monkeypatch.setattr(execution.subprocess, "run", fake_run)
     response = client.post(
         "/api/executions/run",
