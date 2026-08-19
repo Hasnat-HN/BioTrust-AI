@@ -1,8 +1,14 @@
 # BioTrust AI
 
-> Don’t trust the AI. Trust the evidence trail.
+## The Idea
 
-BioTrust AI is a local-first research-software MVP for inspectable, reproducible, and scientifically conservative AI-assisted bioinformatics. It keeps raw research data inside the computation boundary and makes method choices, user decisions, deterministic warnings, provenance, and claims independently auditable.
+As I started using AI more extensively in bioinformatics and biostatistics, I began to see both its potential and its limitations. It can accelerate analysis, suggest methods, generate code, and help interpret complex results. But scientific work needs more than a convincing answer. It needs a clear and defensible record of how that answer was reached.
+
+Through my own experience, and from seeing other researchers face similar challenges, I noticed that AI-assisted analysis can quickly become difficult to trace. Methods may be suggested without enough context, assumptions can remain hidden, alternative approaches may be overlooked, and interpretations can go beyond what the data actually support. It can also become unclear which decisions came from the researcher and which were suggested by AI.
+
+BioTrust AI is an attempt to make that process more transparent. The idea is to preserve the benefits of AI while making every important analytical decision, assumption, result, validation step, limitation, and interpretation visible, traceable, and easier to evaluate.
+
+The aim is simple: AI should help researchers reason through an analysis, not become a black box they are expected to trust.
 
 **Live web demonstration:** [Open BioTrust AI](https://biotrust-ai-evidence.hash777.chatgpt.site/)
 
