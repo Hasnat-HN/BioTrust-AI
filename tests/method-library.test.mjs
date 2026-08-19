@@ -38,3 +38,9 @@ test("controlled execution is exposed locally without widening arbitrary code ac
   assert.match(appSource, /no arbitrary formulas/i);
   assert.match(appSource, /Private dataset execution is deliberately unavailable on the public website/);
 });
+
+test("sidebar identifies the workspace without inventing a researcher identity", () => {
+  assert.match(appSource, /BioTrust Workspace/);
+  assert.match(appSource, /Local research environment/);
+  assert.doesNotMatch(appSource, /Synthetic researcher/);
+});

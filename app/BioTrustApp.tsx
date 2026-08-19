@@ -126,7 +126,7 @@ function Sidebar({ active, onNavigate, onPrivacy }: { active: View; onNavigate: 
         <span className="privacy-copy">Raw data stays inside the local computation boundary.</span>
         <span className="privacy-action">Inspect privacy boundary <span>→</span></span>
       </button>
-      <div className="user-row"><span className="avatar">SR</span><div><strong>Synthetic researcher</strong><small>Local workspace</small></div><span>•••</span></div>
+      <div className="user-row"><span className="avatar">BW</span><div><strong>BioTrust Workspace</strong><small>Local research environment</small></div><span>•••</span></div>
     </aside>
   );
 }

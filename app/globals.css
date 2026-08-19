@@ -46,7 +46,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .privacy-copy { display: block; color: #92aaa3; font-size: 11px; line-height: 1.5; margin: 9px 0 12px; }
 .privacy-action { display: flex; justify-content: space-between; color: #a8c9bf; font-size: 11px; }
 .user-row { display: grid; grid-template-columns: 32px 1fr auto; gap: 9px; align-items: center; border-top: 1px solid rgba(255,255,255,.1); margin-top: 15px; padding: 16px 6px 0; }
-.avatar { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: #17342c; background: #bdd7ce; font-size: 10px; font-weight: 800; }
+.avatar { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: #102721; background: #8fb8c8; box-shadow: 0 0 0 1px rgba(226, 238, 243, .2); font-size: 10px; font-weight: 800; }
 .user-row strong, .user-row small { display: block; }
 .user-row strong { font-size: 11px; }
 .user-row small { margin-top: 3px; color: #78928a; font-size: 9px; }
