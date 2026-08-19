@@ -1,0 +1,14 @@
+.git
+.github
+.venv
+node_modules
+dist
+.vinext
+.wrangler
+.pytest_cache
+__pycache__
+*.pyc
+.DS_Store
+.env
+outputs
+work
