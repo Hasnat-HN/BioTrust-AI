@@ -10,7 +10,7 @@ BioTrust AI is an attempt to make that process more transparent. The idea is to 
 
 The aim is simple: AI should help researchers reason through an analysis, not become a black box they are expected to trust.
 
-**Live web demonstration:** [Open BioTrust AI](https://biotrust-ai-evidence.hash777.chatgpt.site/)
+**Live web demonstration:** [Open BioTrust AI](https://hasnat-hn.github.io/BioTrust-AI/)
 
 The live demonstration is safe for public exploration and does not accept private datasets. Run the project locally to execute real count matrices within the controlled Docker boundary.
 
