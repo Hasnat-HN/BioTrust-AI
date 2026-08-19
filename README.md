@@ -6,7 +6,7 @@ BioTrust AI is a local-first research-software MVP for inspectable, reproducible
 
 ## What is implemented
 
-- Interactive Next.js/Vinext research workspace using synthetic data only
+- Interactive Next.js/Vinext research workspace that ships with synthetic demonstration data and is designed for local analysis of real datasets once a controlled computation adapter is connected
 - Structured analysis-plan builder with an exact formula preview
 - AI proposal lifecycle with explicit accept, modify, and reject actions
 - “Can I trust this result?” evidence and adversarial-review surface
