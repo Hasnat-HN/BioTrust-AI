@@ -44,3 +44,19 @@ test("sidebar identifies the workspace without inventing a researcher identity",
   assert.match(appSource, /Local research environment/);
   assert.doesNotMatch(appSource, /Synthetic researcher/);
 });
+
+test("the public demonstration begins empty and reveals results only after an explicit synthetic run", () => {
+  assert.match(appSource, /useState<View>\("overview"\)/);
+  assert.match(appSource, /Run on synthetic data/);
+  assert.match(appSource, /No results are preloaded/);
+  assert.match(appSource, /syntheticResult \? <TrustView/);
+  assert.match(appSource, /syntheticResult \? <ClaimsView/);
+  assert.match(appSource, /syntheticResult \? <ProvenanceView/);
+});
+
+test("includes the evidence-trail logo and a persistent dark mode option", () => {
+  assert.match(appSource, /trail-node third/);
+  assert.doesNotMatch(appSource, /className="brand-mark">B</);
+  assert.match(appSource, /biotrust\.theme\.v1/);
+  assert.match(appSource, /Switch to \$\{theme === "light" \? "dark" : "light"\} mode/);
+});

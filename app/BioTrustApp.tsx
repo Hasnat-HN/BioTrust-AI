@@ -31,6 +31,36 @@ type ExecutionResult = {
   results: Array<{ feature_id: string; log2_fold_change: number | null; statistic: number | null; p_value: number | null; adjusted_p_value: number | null }>;
 };
 
+type Theme = "light" | "dark";
+
+const syntheticExecutionResult: ExecutionResult = {
+  execution_id: "SYN-20250314-001",
+  status: "completed",
+  method: "edgeR quasi-likelihood",
+  comparison: "Group_B",
+  reference: "Group_A",
+  design: "~ Technical_Batch + condition",
+  sample_count: 120,
+  feature_count: 12000,
+  retained_feature_count: 8421,
+  input_hashes: {
+    counts_sha256: "synthetic-8fb2d91c",
+    metadata_sha256: "synthetic-42ae71d0",
+  },
+  output_hash: "synthetic-51ac82b7",
+  software_versions: { R: "4.4.x", edgeR: "4.4.x" },
+  warnings: ["Demonstration result only; no biological or clinical interpretation is intended."],
+  generated_at: "2025-03-14T10:18:42.000Z",
+  results: [
+    { feature_id: "Feature_001", log2_fold_change: 1.284, statistic: 5.921, p_value: 0.000004, adjusted_p_value: 0.0032 },
+    { feature_id: "Feature_002", log2_fold_change: -1.071, statistic: -5.104, p_value: 0.000018, adjusted_p_value: 0.0076 },
+    { feature_id: "Feature_003", log2_fold_change: 0.893, statistic: 4.667, p_value: 0.000041, adjusted_p_value: 0.0115 },
+    { feature_id: "Feature_004", log2_fold_change: -0.744, statistic: -4.201, p_value: 0.000093, adjusted_p_value: 0.0194 },
+    { feature_id: "Feature_005", log2_fold_change: 0.619, statistic: 3.884, p_value: 0.000212, adjusted_p_value: 0.0311 },
+    { feature_id: "Feature_006", log2_fold_change: -0.481, statistic: -3.226, p_value: 0.00128, adjusted_p_value: 0.084 },
+  ],
+};
+
 const nav: Array<{ view: View; label: string; glyph: string; group?: string; count?: number }> = [
   { view: "overview", label: "Overview", glyph: "⌂", group: "Workspace" },
   { view: "projects", label: "Projects", glyph: "□" },
@@ -104,11 +134,11 @@ function AddMethodCardModal({ onClose, onSave }: { onClose: () => void; onSave: 
   return <Modal title="Add a Method Card" onClose={onClose} wide><form className="method-form" onSubmit={submit}><div className="method-form-note"><span>i</span><p><strong>Documentation, not execution</strong>Adding a Method Card makes a method available for planning and review. It never enables arbitrary code execution.</p></div><div className="method-form-grid"><label>Method name *<input required value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="e.g. My validated workflow" /></label><label>Package or framework *<input required value={form.package} onChange={(event) => update("package", event.target.value)} placeholder="e.g. packageName" /></label><label>Function or entry point *<input required value={form.fn} onChange={(event) => update("fn", event.target.value)} placeholder="e.g. fitModel" /></label><label>Category<select value={form.category} onChange={(event) => update("category", event.target.value)}><option>Differential expression</option><option>Gene-set testing</option><option>Association</option><option>Validation</option><option>Batch adjustment</option><option>Unwanted variation</option><option>Repeated measures</option><option>Exploratory analysis</option><option>Other</option></select></label></div><label>What scientific question does it answer? *<textarea required value={form.question} onChange={(event) => update("question", event.target.value)} placeholder="State the estimand or hypothesis precisely." /></label><div className="method-form-grid lists">{listField("What it does not answer", "notAnswered", "One item per line")}{listField("Appropriate when", "appropriate", "One condition per line")}{listField("Assumptions", "assumptions", "One assumption per line")}{listField("Common failure modes", "failureModes", "One failure mode per line")}{listField("Alternatives", "alternatives", "One alternative per line")}{listField("Recommended validation", "validation", "One check per line")}</div><label>Official documentation URL<input type="url" value={form.officialDocumentation} onChange={(event) => update("officialDocumentation", event.target.value)} placeholder="https://…" /></label><footer><span>Custom cards are stored on this device and marked REVIEW REQUIRED.</span><div><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button type="submit" className="primary-button">Add Method Card <span>＋</span></button></div></footer></form></Modal>;
 }
 
-function Sidebar({ active, onNavigate, onPrivacy }: { active: View; onNavigate: (view: View) => void; onPrivacy: () => void }) {
+function Sidebar({ active, hasResults, onNavigate, onPrivacy }: { active: View; hasResults: boolean; onNavigate: (view: View) => void; onPrivacy: () => void }) {
   return (
     <aside className="sidebar">
       <button className="brand" onClick={() => onNavigate("overview")} aria-label="BioTrust AI home">
-        <span className="brand-mark">B</span>
+        <span className="brand-mark" aria-hidden="true"><span className="trail-segment first" /><span className="trail-segment second" /><span className="trail-node first" /><span className="trail-node second" /><span className="trail-node third" /></span>
         <span>BioTrust <i>AI</i></span>
       </button>
       <nav aria-label="Primary navigation">
@@ -116,7 +146,7 @@ function Sidebar({ active, onNavigate, onPrivacy }: { active: View; onNavigate: 
           <div key={item.view}>
             {item.group && <p className="nav-label">{item.group}</p>}
             <button className={`nav-item ${active === item.view ? "active" : ""}`} onClick={() => onNavigate(item.view)}>
-              <span>{item.glyph}</span>{item.label}{item.count && <b>{item.count}</b>}
+              <span>{item.glyph}</span>{item.label}{item.count && hasResults && <b>{item.count}</b>}
             </button>
           </div>
         ))}
@@ -131,28 +161,33 @@ function Sidebar({ active, onNavigate, onPrivacy }: { active: View; onNavigate: 
   );
 }
 
-function Topbar({ view, onExport, onMenu }: { view: View; onExport: () => void; onMenu: () => void }) {
+function Topbar({ view, theme, canExport, onToggleTheme, onExport, onMenu }: { view: View; theme: Theme; canExport: boolean; onToggleTheme: () => void; onExport: () => void; onMenu: () => void }) {
   return (
     <header className="topbar">
       <button className="mobile-menu" aria-label="Open navigation" onClick={onMenu}>☰</button>
       <div className="breadcrumbs"><span>Synthetic transcriptomic association study</span><b>/</b><strong>{viewTitle[view]}</strong></div>
-      <div className="top-actions"><button className="icon-btn" aria-label="Notifications">◎</button><button className="export-btn" onClick={onExport}>Export audit <span>↗</span></button></div>
+      <div className="top-actions"><button className="icon-btn theme-toggle" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`} title={`Switch to ${theme === "light" ? "dark" : "light"} mode`} onClick={onToggleTheme}>{theme === "light" ? "☾" : "☀"}</button><button className="export-btn" onClick={onExport} disabled={!canExport} title={canExport ? "Export the current audit record" : "Run the synthetic analysis before exporting an audit"}>Export audit <span>↗</span></button></div>
     </header>
   );
 }
 
-function OverviewView({ navigate, openPrivacy }: { navigate: (view: View) => void; openPrivacy: () => void }) {
-  const stats = [
+function OverviewView({ navigate, openPrivacy, hasResults }: { navigate: (view: View) => void; openPrivacy: () => void; hasResults: boolean }) {
+  const stats = hasResults ? [
     ["Registered datasets", "1", "Synthetic only", "□"],
     ["Analysis plans", "5", "4 completed", "⌁"],
     ["Scientific claims", "4", "1 needs review", "≡"],
     ["Provenance coverage", "100%", "All runs traceable", "⌘"],
+  ] : [
+    ["Registered datasets", "1", "Synthetic fixture ready", "□"],
+    ["Analysis plans", "1", "Ready for demonstration", "⌁"],
+    ["Scientific claims", "0", "Created only after a run", "≡"],
+    ["Provenance coverage", "—", "No completed run yet", "⌘"],
   ];
   return (
     <div className="view overview-view">
       <section className="welcome-row">
         <div><span className="page-kicker">Research workspace</span><h1>Evidence before confidence.</h1><p>Trace every scientific decision from question to claim—without exposing raw research data to external AI.</p></div>
-        <button className="primary-button" onClick={() => navigate("analysis")}>Create analysis plan <span>→</span></button>
+        <button className="primary-button" onClick={() => navigate(hasResults ? "analysis" : "execution")}>{hasResults ? "Create analysis plan" : "Run synthetic demonstration"} <span>→</span></button>
       </section>
       <button className="mode-banner" onClick={openPrivacy}>
         <span className="mode-icon">●</span><span><strong>NO_EXTERNAL_AI_MODE is active</strong><small>All reasoning is deterministic and local. No payload can leave the computation boundary.</small></span><span className="mode-link">Inspect policy →</span>
@@ -162,22 +197,27 @@ function OverviewView({ navigate, openPrivacy }: { navigate: (view: View) => voi
       </section>
       <div className="overview-grid">
         <section className="panel workflow-panel">
-          <div className="section-head"><div><span className="panel-icon">⌁</span><div><h2>Current analysis workflow</h2><p>Analysis 01 · Exposure_A association</p></div></div><Badge>RUN COMPLETE</Badge></div>
+          <div className="section-head"><div><span className="panel-icon">⌁</span><div><h2>Current analysis workflow</h2><p>{hasResults ? "Analysis 01 · Exposure_A association" : "Synthetic demonstration · waiting to run"}</p></div></div><Badge tone={hasResults ? "green" : "gray"}>{hasResults ? "RUN COMPLETE" : "READY TO RUN"}</Badge></div>
           <div className="workflow-track">
-            {[
+            {(hasResults ? [
               ["1", "Question defined", "Researcher approved"],
               ["2", "Plan locked", "Formula confirmed"],
               ["3", "Analysis run", "Hashes recorded"],
               ["4", "Claims reviewed", "1 caveat attached"],
-            ].map(([n, title, meta], index) => <div className="workflow-step" key={n}><span className="step-dot">{index < 3 ? "✓" : n}</span><div><strong>{title}</strong><small>{meta}</small></div>{index < 3 && <i />}</div>)}
+            ] : [
+              ["1", "Fixture prepared", "Synthetic data only"],
+              ["2", "Method selected", "edgeR quasi-likelihood"],
+              ["3", "Run pending", "Start from Run analysis"],
+              ["4", "Results hidden", "Revealed after execution"],
+            ]).map(([n, title, meta], index) => <div className={`workflow-step ${!hasResults ? "pending" : ""}`} key={n}><span className="step-dot">{hasResults && index < 3 ? "✓" : n}</span><div><strong>{title}</strong><small>{meta}</small></div>{index < 3 && <i />}</div>)}
           </div>
-          <button className="text-button" onClick={() => navigate("trust")}>Review result evidence <span>→</span></button>
+          <button className="text-button" onClick={() => navigate(hasResults ? "trust" : "execution")}>{hasResults ? "Review result evidence" : "Run on synthetic data"} <span>→</span></button>
         </section>
         <section className="panel recent-panel">
           <div className="section-head"><div><span className="panel-icon">≡</span><div><h2>Recent claims</h2><p>Structured scientific statements</p></div></div><button className="quiet-button" onClick={() => navigate("claims")}>View all</button></div>
-          <div className="mini-claims">
+          {hasResults ? <div className="mini-claims">
             {claims.slice(0, 3).map((claim) => <button key={claim.id} onClick={() => navigate("claims")}><span><Badge tone={claim.type === "HYPOTHESIS" ? "amber" : claim.type === "DATA" ? "blue" : "green"}>{claim.type}</Badge><small>{claim.id}</small></span><p>{claim.text}</p><i>›</i></button>)}
-          </div>
+          </div> : <div className="awaiting-results"><span>◇</span><strong>No demonstration results yet</strong><p>Claims will appear only after you explicitly run the synthetic analysis.</p><button onClick={() => navigate("execution")}>Go to Run analysis →</button></div>}
         </section>
       </div>
       <section className="principle-strip"><span className="quote-mark">“</span><div><strong>Don’t trust the AI. Trust the evidence trail.</strong><p>AI can propose, explain, and critique. Structured analysis records and executed outputs remain authoritative.</p></div><button onClick={() => navigate("provenance")}>See the trail <span>→</span></button></section>
@@ -185,12 +225,12 @@ function OverviewView({ navigate, openPrivacy }: { navigate: (view: View) => voi
   );
 }
 
-function ProjectsView({ navigate }: { navigate: (view: View) => void }) {
+function ProjectsView({ navigate, hasResults }: { navigate: (view: View) => void; hasResults: boolean }) {
   return (
     <div className="view">
       <div className="page-head"><div><span className="page-kicker">Workspace</span><h1>Projects</h1><p>Local research workspaces with explicit privacy and provenance controls.</p></div><button className="primary-button" disabled title="Project creation is disabled in the synthetic demo">New project <span>＋</span></button></div>
       <section className="project-card">
-        <div className="project-main"><div className="project-monogram">ST</div><div><span className="project-title-row"><h2>Synthetic transcriptomic association study</h2><Badge>SYNTHETIC</Badge></span><p>Demonstration workspace for auditable transcriptomic analysis. All values are procedurally generated.</p><div className="project-meta"><span>1 dataset</span><i>·</i><span>5 analyses</span><i>·</i><span>4 claims</span><i>·</i><span>Updated today</span></div></div></div>
+        <div className="project-main"><div className="project-monogram">ST</div><div><span className="project-title-row"><h2>Synthetic transcriptomic association study</h2><Badge>SYNTHETIC</Badge></span><p>Demonstration workspace for auditable transcriptomic analysis. All values are procedurally generated.</p><div className="project-meta"><span>1 dataset</span><i>·</i><span>{hasResults ? "1 completed analysis" : "0 completed analyses"}</span><i>·</i><span>{hasResults ? "4 generated claims" : "0 generated claims"}</span><i>·</i><span>{hasResults ? "Run completed this session" : "Ready to run"}</span></div></div></div>
         <div className="project-actions"><Badge tone="gray">LOCAL COMPUTE</Badge><button className="secondary-button" onClick={() => navigate("overview")}>Open project <span>→</span></button></div>
       </section>
       <div className="two-columns">
@@ -229,7 +269,7 @@ function AnalysisView({ onToast }: { onToast: (message: string) => void }) {
   );
 }
 
-function ExecutionView({ onToast }: { onToast: (message: string) => void }) {
+function ExecutionView({ onToast, syntheticResult, onSyntheticResult }: { onToast: (message: string) => void; syntheticResult: ExecutionResult | null; onSyntheticResult: (result: ExecutionResult) => void }) {
   const [localRuntime, setLocalRuntime] = useState(false);
   const [countsFile, setCountsFile] = useState<File | null>(null);
   const [metadataFile, setMetadataFile] = useState<File | null>(null);
@@ -239,6 +279,7 @@ function ExecutionView({ onToast }: { onToast: (message: string) => void }) {
   const [comparisonLevel, setComparisonLevel] = useState("treated");
   const [covariates, setCovariates] = useState("batch");
   const [running, setRunning] = useState(false);
+  const [demoRunning, setDemoRunning] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<ExecutionResult | null>(null);
   useEffect(() => {
@@ -288,10 +329,22 @@ function ExecutionView({ onToast }: { onToast: (message: string) => void }) {
     }
   };
   const formatNumber = (value: number | null) => value === null ? "NA" : Math.abs(value) < .001 && value !== 0 ? value.toExponential(2) : value.toFixed(3);
+  const runSynthetic = () => {
+    setDemoRunning(true);
+    setError("");
+    window.setTimeout(() => {
+      onSyntheticResult(syntheticExecutionResult);
+      setDemoRunning(false);
+      onToast("Synthetic analysis completed; demonstration results are now visible");
+    }, 750);
+  };
+  const visibleResult = result ?? syntheticResult;
+  const resultIsSynthetic = visibleResult?.execution_id.startsWith("SYN-") ?? false;
   return (
     <div className="view execution-view">
       <div className="page-head"><div><span className="page-kicker">Local computation boundary</span><h1>Run a controlled analysis</h1><p>Execute a validated RNA-seq comparison without allowing arbitrary code or sending raw data to an external service.</p></div><Badge tone={localRuntime ? "green" : "gray"}>{localRuntime ? "LOCAL RUNNER" : "WEB PREVIEW"}</Badge></div>
       {!localRuntime && <section className="hosted-execution-notice"><span>⌂</span><div><strong>Private dataset execution is deliberately unavailable on the public website.</strong><p>Clone the repository and run <code>docker compose up --build</code>. Then open <code>http://localhost:3000</code>; this form will connect only to your local BioTrust API.</p></div><a href="https://github.com/Hasnat-HN/BioTrust-AI" target="_blank" rel="noreferrer">Open GitHub setup <span>↗</span></a></section>}
+      <section className="synthetic-run-card"><span className="synthetic-run-mark">◇</span><div><Badge tone="blue">SAFE DEMONSTRATION</Badge><h2>Run the synthetic analysis</h2><p>No results are preloaded. This runs a fixed demonstration fixture and reveals its clearly labeled output, claims, and provenance record.</p></div><button className="primary-button" onClick={runSynthetic} disabled={demoRunning}>{demoRunning ? "Running synthetic fixture…" : syntheticResult ? "Run synthetic data again" : "Run on synthetic data"} <span>{demoRunning ? "◌" : "▶"}</span></button></section>
       <div className="execution-layout">
         <form className="panel execution-form" onSubmit={submit}>
           <div className="section-head"><div><span className="panel-icon">▶</span><div><h2>Analysis inputs</h2><p>Files remain inside the temporary local runner</p></div></div><Badge tone="blue">ALLOWLISTED</Badge></div>
@@ -315,7 +368,7 @@ function ExecutionView({ onToast }: { onToast: (message: string) => void }) {
           <section className="panel input-limits"><h2>Default limits</h2><dl><div><dt>File size</dt><dd>50 MB each</dd></div><div><dt>Features</dt><dd>50,000</dd></div><div><dt>Samples</dt><dd>500</dd></div><div><dt>Runtime</dt><dd>15 minutes</dd></div><div><dt>Replication</dt><dd>≥ 2 per group</dd></div></dl></section>
         </aside>
       </div>
-      {result && <section className="panel execution-results"><div className="result-head"><div><Badge>RUN COMPLETE</Badge><h2>{result.comparison} versus {result.reference}</h2><p>{result.execution_id} · {result.design}</p></div><div><button className="secondary-button" onClick={() => download(JSON.stringify(result, null, 2), `${result.execution_id}-audit.json`, "application/json")}>Audit JSON <span>↓</span></button><button className="primary-button" onClick={downloadResults}>Results CSV <span>↓</span></button></div></div><div className="run-facts"><span><small>Samples</small><strong>{result.sample_count}</strong></span><span><small>Input features</small><strong>{result.feature_count.toLocaleString()}</strong></span><span><small>Retained</small><strong>{result.retained_feature_count.toLocaleString()}</strong></span><span><small>Runtime</small><strong>{Object.entries(result.software_versions).map(([name, version]) => `${name} ${version}`).join(" · ")}</strong></span></div><div className="result-table-wrap"><table><thead><tr><th>Feature</th><th>log2 fold change</th><th>Statistic</th><th>p-value</th><th>Adjusted p-value</th></tr></thead><tbody>{result.results.slice(0, 100).map((row) => <tr key={row.feature_id}><td>{row.feature_id}</td><td>{formatNumber(row.log2_fold_change)}</td><td>{formatNumber(row.statistic)}</td><td>{formatNumber(row.p_value)}</td><td>{formatNumber(row.adjusted_p_value)}</td></tr>)}</tbody></table></div><div className="hash-record"><strong>Immutable run record</strong><code>counts {result.input_hashes.counts_sha256}</code><code>metadata {result.input_hashes.metadata_sha256}</code><code>output {result.output_hash}</code></div>{result.results.length > 100 && <p className="result-preview-note">Showing the first 100 adjusted-p-value-ranked features. The CSV download contains all {result.results.length.toLocaleString()} rows.</p>}</section>}
+      {visibleResult && <section className="panel execution-results"><div className="result-head"><div><Badge tone={resultIsSynthetic ? "blue" : "green"}>{resultIsSynthetic ? "SYNTHETIC RUN COMPLETE" : "RUN COMPLETE"}</Badge><h2>{visibleResult.comparison} versus {visibleResult.reference}</h2><p>{visibleResult.execution_id} · {visibleResult.design}</p></div><div><button className="secondary-button" onClick={() => download(JSON.stringify(visibleResult, null, 2), `${visibleResult.execution_id}-audit.json`, "application/json")}>Audit JSON <span>↓</span></button><button className="primary-button" onClick={() => { if (result) downloadResults(); else { const escape = (value: string | number | null) => `"${String(value ?? "").replaceAll('"', '""')}"`; const rows = visibleResult.results.map((row) => [row.feature_id, row.log2_fold_change, row.statistic, row.p_value, row.adjusted_p_value].map(escape).join(",")); download(["feature_id,log2_fold_change,statistic,p_value,adjusted_p_value", ...rows].join("\n"), `${visibleResult.execution_id}-results.csv`, "text/csv"); onToast("Synthetic result table downloaded"); } }}>Results CSV <span>↓</span></button></div></div>{resultIsSynthetic && <div className="synthetic-result-warning"><strong>Demonstration output only</strong><span>These fixed generic values do not describe a real organism, cohort, disease, or biological finding.</span></div>}<div className="run-facts"><span><small>Samples</small><strong>{visibleResult.sample_count}</strong></span><span><small>Input features</small><strong>{visibleResult.feature_count.toLocaleString()}</strong></span><span><small>Retained</small><strong>{visibleResult.retained_feature_count.toLocaleString()}</strong></span><span><small>Runtime</small><strong>{Object.entries(visibleResult.software_versions).map(([name, version]) => `${name} ${version}`).join(" · ")}</strong></span></div><div className="result-table-wrap"><table><thead><tr><th>Feature</th><th>log2 fold change</th><th>Statistic</th><th>p-value</th><th>Adjusted p-value</th></tr></thead><tbody>{visibleResult.results.slice(0, 100).map((row) => <tr key={row.feature_id}><td>{row.feature_id}</td><td>{formatNumber(row.log2_fold_change)}</td><td>{formatNumber(row.statistic)}</td><td>{formatNumber(row.p_value)}</td><td>{formatNumber(row.adjusted_p_value)}</td></tr>)}</tbody></table></div><div className="hash-record"><strong>Immutable run record</strong><code>counts {visibleResult.input_hashes.counts_sha256}</code><code>metadata {visibleResult.input_hashes.metadata_sha256}</code><code>output {visibleResult.output_hash}</code></div>{visibleResult.results.length > 100 && <p className="result-preview-note">Showing the first 100 adjusted-p-value-ranked features. The CSV download contains all {visibleResult.results.length.toLocaleString()} rows.</p>}</section>}
     </div>
   );
 }
@@ -383,8 +436,14 @@ function ProvenanceView({ onExport }: { onExport: () => void }) {
   );
 }
 
+function ResultsGate({ navigate, destination }: { navigate: (view: View) => void; destination: string }) {
+  return <div className="view"><section className="results-gate"><span className="results-gate-mark">◇</span><span className="page-kicker">Results not generated</span><h1>{destination} will appear after a run.</h1><p>The public demonstration starts without preloaded synthetic outcomes. Go to Run analysis and explicitly execute the synthetic fixture to reveal this section.</p><button className="primary-button" onClick={() => navigate("execution")}>Go to Run analysis <span>→</span></button></section></div>;
+}
+
 export default function BioTrustApp() {
-  const [view, setView] = useState<View>("trust");
+  const [view, setView] = useState<View>("overview");
+  const [theme, setTheme] = useState<Theme>("light");
+  const [syntheticResult, setSyntheticResult] = useState<ExecutionResult | null>(null);
   const [selectedClaim, setSelectedClaim] = useState(claims[0]);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -401,26 +460,39 @@ export default function BioTrustApp() {
       if (Array.isArray(saved)) setCatalog([...builtInMethods, ...saved.filter((method) => method?.origin === "CUSTOM")]);
     } catch { localStorage.removeItem("biotrust.custom-methods.v1"); }
   }, []);
+  useEffect(() => {
+    const saved = localStorage.getItem("biotrust.theme.v1");
+    const next: Theme = saved === "dark" || saved === "light" ? saved : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = next;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate the device-local display preference after mount
+    setTheme(next);
+  }, []);
+  const toggleTheme = () => setTheme((current) => {
+    const next = current === "light" ? "dark" : "light";
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("biotrust.theme.v1", next);
+    return next;
+  });
   const persistCustomMethods = (custom: MethodCard[]) => { localStorage.setItem("biotrust.custom-methods.v1", JSON.stringify(custom)); setCatalog([...builtInMethods, ...custom]); };
   const addMethod = (method: MethodCard) => { const custom = [...catalog.filter((item) => item.origin === "CUSTOM"), method]; persistCustomMethods(custom); setAddMethodOpen(false); setSelectedMethod(method); notify(`${method.name} added as REVIEW REQUIRED`); };
   const deleteMethod = (method: MethodCard) => { persistCustomMethods(catalog.filter((item) => item.origin === "CUSTOM" && item.slug !== method.slug)); setSelectedMethod(null); notify("Custom Method Card removed from this device"); };
   const exportMethodPack = () => { const blob = new Blob([JSON.stringify({ format: "biotrust-method-pack", version: 1, methods: catalog }, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "biotrust-method-pack.json"; anchor.click(); URL.revokeObjectURL(url); notify("Method pack exported"); };
   const importMethodPack = async (file: File) => { try { const parsed = JSON.parse(await file.text()); const incoming = (Array.isArray(parsed) ? parsed : parsed.methods) as MethodCard[]; if (!Array.isArray(incoming)) throw new Error("Invalid pack"); const valid = incoming.filter((method) => method?.name && method?.package && method?.fn && method?.question).map((method, index) => ({ ...method, slug: `custom-imported-${Date.now()}-${index}`, status: "REVIEW_REQUIRED" as const, origin: "CUSTOM" as const })); const merged = [...catalog.filter((item) => item.origin === "CUSTOM"), ...valid]; persistCustomMethods(merged); notify(`${valid.length} Method Cards imported for review`); } catch { notify("Method pack could not be imported"); } };
-  const audit = useMemo(() => ({ exported_at: new Date().toISOString(), project: "Synthetic transcriptomic association study", privacy_mode: "NO_EXTERNAL_AI_MODE", dataset: { id: "Synthetic_Cohort", sha256: "8fb2…d91c", synthetic: true }, claims, provenance: provenanceEvents }), []);
-  const exportAudit = () => { const blob = new Blob([JSON.stringify(audit, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "biotrust-audit-sanitized.json"; anchor.click(); URL.revokeObjectURL(url); notify("Sanitized audit export created"); };
+  const audit = useMemo(() => ({ exported_at: new Date().toISOString(), project: "Synthetic transcriptomic association study", privacy_mode: "NO_EXTERNAL_AI_MODE", dataset: { id: "Synthetic_Cohort", sha256: "8fb2…d91c", synthetic: true }, execution: syntheticResult, claims: syntheticResult ? claims : [], provenance: syntheticResult ? provenanceEvents : [] }), [syntheticResult]);
+  const exportAudit = () => { if (!syntheticResult) { notify("Run the synthetic analysis before exporting an audit"); return; } const blob = new Blob([JSON.stringify(audit, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "biotrust-audit-sanitized.json"; anchor.click(); URL.revokeObjectURL(url); notify("Sanitized audit export created"); };
   const navigate = (next: View) => { setView(next); setMobileNav(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
   return (
     <main className="app-shell">
-      <div className={mobileNav ? "mobile-nav open" : "mobile-nav"}><Sidebar active={view} onNavigate={navigate} onPrivacy={() => setPrivacyOpen(true)} /><button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" /></div>
-      <section className="workspace"><Topbar view={view} onExport={exportAudit} onMenu={() => setMobileNav(true)} />
-        {view === "overview" && <OverviewView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} />}
-        {view === "projects" && <ProjectsView navigate={navigate} />}
+      <div className={mobileNav ? "mobile-nav open" : "mobile-nav"}><Sidebar active={view} hasResults={Boolean(syntheticResult)} onNavigate={navigate} onPrivacy={() => setPrivacyOpen(true)} /><button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" /></div>
+      <section className="workspace"><Topbar view={view} theme={theme} canExport={Boolean(syntheticResult)} onToggleTheme={toggleTheme} onExport={exportAudit} onMenu={() => setMobileNav(true)} />
+        {view === "overview" && <OverviewView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} hasResults={Boolean(syntheticResult)} />}
+        {view === "projects" && <ProjectsView navigate={navigate} hasResults={Boolean(syntheticResult)} />}
         {view === "analysis" && <AnalysisView onToast={notify} />}
-        {view === "execution" && <ExecutionView onToast={notify} />}
-        {view === "trust" && <TrustView selected={selectedClaim} setSelected={setSelectedClaim} onRules={() => setRulesOpen(true)} onToast={notify} />}
-        {view === "claims" && <ClaimsView selected={selectedClaim} setSelected={setSelectedClaim} />}
+        {view === "execution" && <ExecutionView onToast={notify} syntheticResult={syntheticResult} onSyntheticResult={setSyntheticResult} />}
+        {view === "trust" && (syntheticResult ? <TrustView selected={selectedClaim} setSelected={setSelectedClaim} onRules={() => setRulesOpen(true)} onToast={notify} /> : <ResultsGate navigate={navigate} destination="Result review" />)}
+        {view === "claims" && (syntheticResult ? <ClaimsView selected={selectedClaim} setSelected={setSelectedClaim} /> : <ResultsGate navigate={navigate} destination="The claim ledger" />)}
         {view === "methods" && <MethodsView catalog={catalog} onSelect={setSelectedMethod} onAdd={() => setAddMethodOpen(true)} onImport={importMethodPack} onExport={exportMethodPack} />}
-        {view === "provenance" && <ProvenanceView onExport={exportAudit} />}
+        {view === "provenance" && (syntheticResult ? <ProvenanceView onExport={exportAudit} /> : <ResultsGate navigate={navigate} destination="The provenance record" />)}
       </section>
       {privacyOpen && <Modal title="AI Context Inspector" onClose={() => setPrivacyOpen(false)} wide><div className="modal-body"><div className="policy-status"><span className="policy-lock">●</span><div><Badge>NO_EXTERNAL_AI_MODE</Badge><h3>No information can be sent to an external AI provider.</h3><p>The allowlist remains inspectable so a researcher can understand the boundary before ever enabling Standard Mode.</p></div></div><div className="context-columns"><section><header><span>✓</span><div><strong>Permitted context</strong><small>In Standard Mode, after approval</small></div></header>{contextAllowed.map((item) => <p key={item}><span>✓</span>{item}</p>)}</section><section className="blocked"><header><span>×</span><div><strong>Prohibited context</strong><small>Blocked before payload construction</small></div></header>{contextBlocked.map((item) => <p key={item}><span>×</span>{item}</p>)}</section></div><div className="payload-preview"><header><strong>Information being shared with AI</strong><Badge tone="gray">EMPTY PAYLOAD</Badge></header><code>{`{\n  "provider": null,\n  "mode": "NO_EXTERNAL_AI_MODE",\n  "payload": null,\n  "blocked_by_policy": true\n}`}</code></div></div><footer className="modal-footer"><span>Every attempted request creates a hash-only AIContextRecord.</span><button className="primary-button" onClick={() => setPrivacyOpen(false)}>Policy understood</button></footer></Modal>}
       {rulesOpen && <Modal title="Deterministic evidence rules" onClose={() => setRulesOpen(false)}><div className="modal-body rules-body"><p>BioTrust never invents a confidence percentage. Each dimension is computed from structured project metadata.</p>{[["0", "Missing or unresolved"], ["1", "Partial or limited"], ["2", "Satisfied and documented"], ["N/A", "Not required for this claim"]].map(([score, meaning]) => <div className="rule-row" key={score}><span>{score}</span><strong>{meaning}</strong></div>)}<div className="overall-rule"><strong>Overall state: SUPPORTED</strong><p>Requires complete provenance, an appropriate model with declared multiple testing, and no unresolved critical warning. External replication is not required until a claim is labeled externally replicated.</p></div></div></Modal>}
