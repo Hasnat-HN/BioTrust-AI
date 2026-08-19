@@ -11,12 +11,31 @@ import {
   type MethodCard,
 } from "./data";
 
-type View = "overview" | "projects" | "analysis" | "trust" | "claims" | "methods" | "provenance";
+type View = "overview" | "projects" | "analysis" | "execution" | "trust" | "claims" | "methods" | "provenance";
+
+type ExecutionResult = {
+  execution_id: string;
+  status: string;
+  method: string;
+  comparison: string;
+  reference: string;
+  design: string;
+  sample_count: number;
+  feature_count: number;
+  retained_feature_count: number;
+  input_hashes: Record<string, string>;
+  output_hash: string;
+  software_versions: Record<string, string>;
+  warnings: string[];
+  generated_at: string;
+  results: Array<{ feature_id: string; log2_fold_change: number | null; statistic: number | null; p_value: number | null; adjusted_p_value: number | null }>;
+};
 
 const nav: Array<{ view: View; label: string; glyph: string; group?: string; count?: number }> = [
   { view: "overview", label: "Overview", glyph: "⌂", group: "Workspace" },
   { view: "projects", label: "Projects", glyph: "□" },
   { view: "analysis", label: "Analysis plans", glyph: "⌁" },
+  { view: "execution", label: "Run analysis", glyph: "▶" },
   { view: "trust", label: "Can I trust this?", glyph: "◇", group: "Scientific record" },
   { view: "claims", label: "Claim ledger", glyph: "≡", count: 4 },
   { view: "methods", label: "Method library", glyph: "◫" },
@@ -27,6 +46,7 @@ const viewTitle: Record<View, string> = {
   overview: "Overview",
   projects: "Projects",
   analysis: "Analysis plan",
+  execution: "Controlled execution",
   trust: "Result review",
   claims: "Claim ledger",
   methods: "Method library",
@@ -209,6 +229,97 @@ function AnalysisView({ onToast }: { onToast: (message: string) => void }) {
   );
 }
 
+function ExecutionView({ onToast }: { onToast: (message: string) => void }) {
+  const [localRuntime, setLocalRuntime] = useState(false);
+  const [countsFile, setCountsFile] = useState<File | null>(null);
+  const [metadataFile, setMetadataFile] = useState<File | null>(null);
+  const [method, setMethod] = useState("edger_qlf");
+  const [conditionColumn, setConditionColumn] = useState("condition");
+  const [referenceLevel, setReferenceLevel] = useState("control");
+  const [comparisonLevel, setComparisonLevel] = useState("treated");
+  const [covariates, setCovariates] = useState("batch");
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<ExecutionResult | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- local execution is enabled only after the browser host is known
+    setLocalRuntime(["localhost", "127.0.0.1", "::1"].includes(window.location.hostname));
+  }, []);
+  const download = (content: string, filename: string, type: string) => {
+    const url = URL.createObjectURL(new Blob([content], { type }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+  const downloadResults = () => {
+    if (!result) return;
+    const escape = (value: string | number | null) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const rows = result.results.map((row) => [row.feature_id, row.log2_fold_change, row.statistic, row.p_value, row.adjusted_p_value].map(escape).join(","));
+    download(["feature_id,log2_fold_change,statistic,p_value,adjusted_p_value", ...rows].join("\n"), `${result.execution_id}-results.csv`, "text/csv");
+    onToast("Result table downloaded");
+  };
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!localRuntime || !countsFile || !metadataFile) return;
+    setRunning(true);
+    setError("");
+    setResult(null);
+    const form = new FormData();
+    form.set("method", method);
+    form.set("condition_column", conditionColumn);
+    form.set("reference_level", referenceLevel);
+    form.set("comparison_level", comparisonLevel);
+    form.set("covariates", covariates);
+    form.set("counts_file", countsFile);
+    form.set("metadata_file", metadataFile);
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+      const response = await fetch(`${apiBase}/api/executions/run`, { method: "POST", body: form });
+      const body = await response.json() as ExecutionResult | { detail?: string };
+      if (!response.ok) throw new Error("detail" in body && body.detail ? body.detail : "The controlled analysis could not be completed");
+      setResult(body as ExecutionResult);
+      onToast("Controlled analysis completed and hashed");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The local execution service is unavailable");
+    } finally {
+      setRunning(false);
+    }
+  };
+  const formatNumber = (value: number | null) => value === null ? "NA" : Math.abs(value) < .001 && value !== 0 ? value.toExponential(2) : value.toFixed(3);
+  return (
+    <div className="view execution-view">
+      <div className="page-head"><div><span className="page-kicker">Local computation boundary</span><h1>Run a controlled analysis</h1><p>Execute a validated RNA-seq comparison without allowing arbitrary code or sending raw data to an external service.</p></div><Badge tone={localRuntime ? "green" : "gray"}>{localRuntime ? "LOCAL RUNNER" : "WEB PREVIEW"}</Badge></div>
+      {!localRuntime && <section className="hosted-execution-notice"><span>⌂</span><div><strong>Private dataset execution is deliberately unavailable on the public website.</strong><p>Clone the repository and run <code>docker compose up --build</code>. Then open <code>http://localhost:3000</code>; this form will connect only to your local BioTrust API.</p></div><a href="https://github.com/Hasnat-HN/BioTrust-AI" target="_blank" rel="noreferrer">Open GitHub setup <span>↗</span></a></section>}
+      <div className="execution-layout">
+        <form className="panel execution-form" onSubmit={submit}>
+          <div className="section-head"><div><span className="panel-icon">▶</span><div><h2>Analysis inputs</h2><p>Files remain inside the temporary local runner</p></div></div><Badge tone="blue">ALLOWLISTED</Badge></div>
+          <div className="execution-files">
+            <label><span>Count matrix CSV</span><input type="file" accept=".csv,text/csv" disabled={!localRuntime || running} onChange={(event) => setCountsFile(event.target.files?.[0] ?? null)} /><small>{countsFile?.name ?? "First column: feature_id; remaining columns: samples"}</small></label>
+            <label><span>Sample metadata CSV</span><input type="file" accept=".csv,text/csv" disabled={!localRuntime || running} onChange={(event) => setMetadataFile(event.target.files?.[0] ?? null)} /><small>{metadataFile?.name ?? "Must include sample_id and the selected condition"}</small></label>
+          </div>
+          <div className="execution-fields">
+            <label>Method<select value={method} disabled={!localRuntime || running} onChange={(event) => setMethod(event.target.value)}><option value="edger_qlf">edgeR quasi-likelihood</option><option value="deseq2_wald">DESeq2 Wald test</option></select></label>
+            <label>Condition column<input value={conditionColumn} disabled={!localRuntime || running} onChange={(event) => setConditionColumn(event.target.value)} /></label>
+            <label>Reference level<input value={referenceLevel} disabled={!localRuntime || running} onChange={(event) => setReferenceLevel(event.target.value)} /></label>
+            <label>Comparison level<input value={comparisonLevel} disabled={!localRuntime || running} onChange={(event) => setComparisonLevel(event.target.value)} /></label>
+          </div>
+          <label className="execution-covariates">Covariates <small>Comma-separated metadata columns; leave empty for none</small><input value={covariates} disabled={!localRuntime || running} onChange={(event) => setCovariates(event.target.value)} placeholder="batch,sex" /></label>
+          <div className="execution-contract"><span>✓</span><p><strong>Exact controlled request</strong><code>~ {covariates.split(",").map((item) => item.trim()).filter(Boolean).join(" + ")}{covariates.trim() ? " + " : ""}{conditionColumn}</code><small>{comparisonLevel} versus {referenceLevel} · BH-adjusted p-values · no arbitrary formulas</small></p></div>
+          {error && <div className="execution-error" role="alert"><strong>Analysis not started</strong><span>{error}</span></div>}
+          <button className="primary-button full" type="submit" disabled={!localRuntime || !countsFile || !metadataFile || running}>{running ? "Running inside the local boundary…" : "Confirm and run analysis"} <span>{running ? "◌" : "→"}</span></button>
+        </form>
+        <aside className="execution-aside">
+          <section className="panel"><div className="section-head"><div><span className="panel-icon">◇</span><div><h2>Execution boundary</h2><p>What the adapter enforces</p></div></div></div><ul className="guard-list"><li><span>01</span><p><strong>Two fixed methods</strong>edgeR QL and DESeq2 Wald only</p></li><li><span>02</span><p><strong>Validated inputs</strong>Exact sample match and integer counts</p></li><li><span>03</span><p><strong>Temporary processing</strong>Uploads deleted after each request</p></li><li><span>04</span><p><strong>Auditable output</strong>Input, result, and software records</p></li></ul></section>
+          <section className="panel input-limits"><h2>Default limits</h2><dl><div><dt>File size</dt><dd>50 MB each</dd></div><div><dt>Features</dt><dd>50,000</dd></div><div><dt>Samples</dt><dd>500</dd></div><div><dt>Runtime</dt><dd>15 minutes</dd></div><div><dt>Replication</dt><dd>≥ 2 per group</dd></div></dl></section>
+        </aside>
+      </div>
+      {result && <section className="panel execution-results"><div className="result-head"><div><Badge>RUN COMPLETE</Badge><h2>{result.comparison} versus {result.reference}</h2><p>{result.execution_id} · {result.design}</p></div><div><button className="secondary-button" onClick={() => download(JSON.stringify(result, null, 2), `${result.execution_id}-audit.json`, "application/json")}>Audit JSON <span>↓</span></button><button className="primary-button" onClick={downloadResults}>Results CSV <span>↓</span></button></div></div><div className="run-facts"><span><small>Samples</small><strong>{result.sample_count}</strong></span><span><small>Input features</small><strong>{result.feature_count.toLocaleString()}</strong></span><span><small>Retained</small><strong>{result.retained_feature_count.toLocaleString()}</strong></span><span><small>Runtime</small><strong>{Object.entries(result.software_versions).map(([name, version]) => `${name} ${version}`).join(" · ")}</strong></span></div><div className="result-table-wrap"><table><thead><tr><th>Feature</th><th>log2 fold change</th><th>Statistic</th><th>p-value</th><th>Adjusted p-value</th></tr></thead><tbody>{result.results.slice(0, 100).map((row) => <tr key={row.feature_id}><td>{row.feature_id}</td><td>{formatNumber(row.log2_fold_change)}</td><td>{formatNumber(row.statistic)}</td><td>{formatNumber(row.p_value)}</td><td>{formatNumber(row.adjusted_p_value)}</td></tr>)}</tbody></table></div><div className="hash-record"><strong>Immutable run record</strong><code>counts {result.input_hashes.counts_sha256}</code><code>metadata {result.input_hashes.metadata_sha256}</code><code>output {result.output_hash}</code></div>{result.results.length > 100 && <p className="result-preview-note">Showing the first 100 adjusted-p-value-ranked features. The CSV download contains all {result.results.length.toLocaleString()} rows.</p>}</section>}
+    </div>
+  );
+}
+
 function EvidenceProfile({ claim }: { claim: Claim }) {
   return <div className="evidence-list">{Object.entries(claim.evidence).map(([label, score]) => <div className="evidence-row" key={label}><span>{label}</span>{score === "NA" ? <small>N/A</small> : <div className="dots" aria-label={`${score} of 2`}><i className={score >= 1 ? "filled" : ""} /><i className={score >= 2 ? "filled" : ""} /></div>}</div>)}</div>;
 }
@@ -305,6 +416,7 @@ export default function BioTrustApp() {
         {view === "overview" && <OverviewView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} />}
         {view === "projects" && <ProjectsView navigate={navigate} />}
         {view === "analysis" && <AnalysisView onToast={notify} />}
+        {view === "execution" && <ExecutionView onToast={notify} />}
         {view === "trust" && <TrustView selected={selectedClaim} setSelected={setSelectedClaim} onRules={() => setRulesOpen(true)} onToast={notify} />}
         {view === "claims" && <ClaimsView selected={selectedClaim} setSelected={setSelectedClaim} />}
         {view === "methods" && <MethodsView catalog={catalog} onSelect={setSelectedMethod} onAdd={() => setAddMethodOpen(true)} onImport={importMethodPack} onExport={exportMethodPack} />}

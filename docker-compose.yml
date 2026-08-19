@@ -21,6 +21,18 @@ services:
       dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
+    environment:
+      BIOTRUST_EXECUTION_TIMEOUT_SECONDS: "900"
+      BIOTRUST_MAX_UPLOAD_MB: "50"
+      BIOTRUST_MAX_FEATURES: "50000"
+      BIOTRUST_MAX_SAMPLES: "500"
+    read_only: true
+    tmpfs:
+      - /tmp:size=1G,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s

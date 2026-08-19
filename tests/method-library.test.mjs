@@ -29,3 +29,12 @@ test("custom method cards are local and always require review", () => {
   assert.match(appSource, /status: "REVIEW_REQUIRED"/);
   assert.match(appSource, /Researcher-added cards stay local and are visibly marked for review/);
 });
+
+test("controlled execution is exposed locally without widening arbitrary code access", () => {
+  assert.match(appSource, /Run a controlled analysis/);
+  assert.match(appSource, /api\/executions\/run/);
+  assert.match(appSource, /edgeR quasi-likelihood/);
+  assert.match(appSource, /DESeq2 Wald test/);
+  assert.match(appSource, /no arbitrary formulas/i);
+  assert.match(appSource, /Private dataset execution is deliberately unavailable on the public website/);
+});

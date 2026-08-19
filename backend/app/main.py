@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .models import AIContextPreview, AIContextRequest, AnalysisPlan, Claim, ClaimReviewInput, Dataset, EvidenceAssessment, EvidenceInput, MethodCard, Project
+from .execution import ExecutionFailedError, ExecutionResponse, ExecutionUnavailableError, ExecutionValidationError, available_methods, execute_differential_expression, runtime_status
 from .privacy import build_context_preview
 from .rules import assess_evidence, review_claim
 from .store import seed_synthetic_demo, store
@@ -14,7 +15,7 @@ app = FastAPI(
     version="0.1.0",
     description="Structured scientific provenance and privacy boundary for the BioTrust AI MVP.",
 )
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["*"], allow_headers=["*"])
 seed_synthetic_demo()
 
 
@@ -72,6 +73,49 @@ def create_claim(claim: Claim) -> Claim:
 @app.get("/api/methods", response_model=list[MethodCard])
 def list_methods() -> list[MethodCard]:
     return store.list("methods")
+
+
+@app.get("/api/execution/methods")
+def list_execution_methods() -> list[dict[str, str]]:
+    return available_methods()
+
+
+@app.get("/api/execution/health")
+def execution_health() -> dict:
+    return runtime_status()
+
+
+@app.post("/api/executions/run", response_model=ExecutionResponse)
+async def run_execution(
+    method: str = Form(...),
+    condition_column: str = Form(...),
+    reference_level: str = Form(...),
+    comparison_level: str = Form(...),
+    covariates: str = Form(""),
+    counts_file: UploadFile = File(...),
+    metadata_file: UploadFile = File(...),
+) -> ExecutionResponse:
+    if not (counts_file.filename or "").lower().endswith(".csv") or not (metadata_file.filename or "").lower().endswith(".csv"):
+        raise HTTPException(422, "Count matrix and metadata must be CSV files")
+    counts_payload = await counts_file.read()
+    metadata_payload = await metadata_file.read()
+    selected_covariates = [item.strip() for item in covariates.split(",") if item.strip()]
+    try:
+        return execute_differential_expression(
+            method=method,
+            counts_payload=counts_payload,
+            metadata_payload=metadata_payload,
+            condition_column=condition_column.strip(),
+            reference_level=reference_level.strip(),
+            comparison_level=comparison_level.strip(),
+            covariates=selected_covariates,
+        )
+    except ExecutionValidationError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except ExecutionUnavailableError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except ExecutionFailedError as exc:
+        raise HTTPException(500, f"Controlled analysis failed: {exc}") from exc
 
 
 @app.post("/api/methods", response_model=MethodCard, status_code=201)
