@@ -1,27 +1,16 @@
 MIT License
 
-Copyright © 2026 Hasnat Noor. All rights reserved.
+Copyright © 2026. All rights reserved.
 
-BioTrust AI and its associated source code, documentation, design,
-and original materials are proprietary works.
+BioTrust AI is an independent research software project.
 
-This repository is made available for viewing, research evaluation,
-and demonstration purposes only.
+Except where otherwise stated or where third-party licenses apply, no permission
+is granted to copy, modify, distribute, publish, sublicense, sell, commercially
+exploit, or create derivative works from the protectable contents of this
+repository without prior written permission from the copyright holder.
 
-No permission is granted to copy, modify, distribute, publish,
-sublicense, sell, commercially exploit, or create derivative works
-from this software or its documentation without prior written
-permission from the copyright holder.
-
-Use of this repository does not grant ownership of any intellectual
-property contained within it.
-
-For permissions or licensing inquiries, please contact the copyright holder.
+Third-party software and libraries remain subject to their respective licenses.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
