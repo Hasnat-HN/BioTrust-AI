@@ -14,12 +14,17 @@ The aim is simple: AI should help researchers reason through an analysis, not be
 
 The public application runs the complete synthetic workflow in the browser and produces downloadable PDF, CSV, and JSON records. Private dataset uploads remain disabled unless a separately secured computation service is connected. Run the project locally to execute real count matrices within the controlled Docker boundary.
 
+The default worked case asks whether a synthetic T-cell-inflamed expression program is associated with synthetic PD-1 response in melanoma. The researcher must review the estimand, seven clinical and technical covariates, assumptions, reference levels, sensitivity threshold, and claim ceiling before any data are generated or analyzed.
+
 ## What is implemented
 
 - Interactive Next.js/Vinext research workspace that ships with synthetic demonstration data and connects to the local controlled execution API for real datasets
+- Deterministic melanoma tumor-microenvironment case with 180 synthetic tumors, 1,200 generic expression features, and no real patient or gene data
+- Multivariable score and feature models adjusting for age, recorded sex, disease stage, biopsy site, prior systemic therapy, tumor purity, and sequencing batch
 - Structured analysis-plan builder with an exact formula preview
 - AI proposal lifecycle with explicit accept, modify, and reject actions
-- “Can I trust this result?” evidence and adversarial-review surface
+- Result-review and adversarial-review surface
+- Evidence-synthesis engine that connects adjustment effects, sensitivity results, program coherence, contradictions, claim boundaries, and next analyses back to cited evidence IDs
 - Claim ledger with scientific statement classifications
 - Searchable Method Card library
 - 18 built-in Method Cards including edgeR, DESeq2, limma, camera, ROAST, fgsea, dream, SVA, ComBat-seq, regression, correlation, and PCA
@@ -71,7 +76,7 @@ npm test
 .venv/bin/pytest backend/tests
 ```
 
-The hosted application is frontend-contained unless the repository variable `BIOTRUST_API_URL` points to an authenticated controlled runner whose CORS policy explicitly permits the GitHub Pages origin. Do not configure a public unauthenticated endpoint for private research data. No real AI provider is connected; custom Method Cards document methods but do not make arbitrary code executable.
+The hosted application is frontend-contained unless the repository variable `BIOTRUST_API_URL` points to an authenticated controlled runner whose CORS policy explicitly permits the GitHub Pages origin. Do not configure a public unauthenticated endpoint for private research data. The current evidence-synthesis engine is a transparent local rule system. Its optional neural adapter is deliberately marked `NOT_CONNECTED`; any future model must receive only sanitized summaries, cite executed evidence records, and require researcher approval. Custom Method Cards document methods but do not make arbitrary code executable.
 
 ## Ownership and permitted use
 

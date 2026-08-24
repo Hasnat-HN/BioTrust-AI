@@ -18,11 +18,12 @@ test("server-renders the BioTrust AI evidence workspace", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
   assert.match(html, /BioTrust AI/);
-  assert.match(html, /Resolve a complex question into testable parts\./);
-  assert.match(html, /Exposure_A/);
-  assert.match(html, /Clinical_Score/);
-  assert.match(html, /One question becomes five linked analyses/);
-  assert.match(html, /Cross-phenotype concordance/);
+  assert.match(html, /A scientific question you can actually run\./);
+  assert.match(html, /melanoma tumor microenvironment/i);
+  assert.match(html, /age, recorded sex, disease stage, biopsy site/);
+  assert.match(html, /Every covariate has a declared role and encoding/);
+  assert.match(html, /Results are sealed/);
+  assert.match(html, /AI_CHOICE/);
   assert.doesNotMatch(html, /Can I trust this result\?/);
   assert.doesNotMatch(html, /Evidence profile/);
   assert.match(html, /No external AI/i);

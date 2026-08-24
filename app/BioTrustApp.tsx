@@ -12,8 +12,9 @@ import {
 } from "./data";
 import { buildDecisionTrail, type ReportExecutionResult } from "./decisionTrail";
 import HowItWorksView from "./HowItWorksView";
+import MelanomaCaseStudyView from "./MelanomaCaseStudyView";
 
-type View = "how" | "overview" | "projects" | "analysis" | "execution" | "trust" | "claims" | "methods" | "provenance";
+type View = "melanoma" | "how" | "overview" | "projects" | "analysis" | "execution" | "trust" | "claims" | "methods" | "provenance";
 
 type ExecutionResult = ReportExecutionResult;
 
@@ -48,7 +49,8 @@ const syntheticExecutionResult: ExecutionResult = {
 };
 
 const nav: Array<{ view: View; label: string; glyph: string; group?: string; count?: number }> = [
-  { view: "how", label: "How it works", glyph: "?", group: "Start" },
+  { view: "melanoma", label: "Melanoma TME case", glyph: "◎", group: "Start" },
+  { view: "how", label: "How it works", glyph: "?" },
   { view: "overview", label: "Overview", glyph: "⌂" },
   { view: "projects", label: "Projects", glyph: "□" },
   { view: "analysis", label: "Analysis plan", glyph: "⌁", group: "Workflow" },
@@ -60,6 +62,7 @@ const nav: Array<{ view: View; label: string; glyph: string; group?: string; cou
 ];
 
 const viewTitle: Record<View, string> = {
+  melanoma: "Synthetic melanoma TME case",
   how: "How it works",
   overview: "Overview",
   projects: "Projects",
@@ -125,7 +128,7 @@ function AddMethodCardModal({ onClose, onSave }: { onClose: () => void; onSave: 
 function Sidebar({ active, hasResults, theme, onNavigate, onPrivacy, onToggleTheme }: { active: View; hasResults: boolean; theme: Theme; onNavigate: (view: View) => void; onPrivacy: () => void; onToggleTheme: () => void }) {
   return (
     <aside className="sidebar">
-      <button className="brand" onClick={() => onNavigate("how")} aria-label="BioTrust AI home">
+      <button className="brand" onClick={() => onNavigate("melanoma")} aria-label="BioTrust AI home">
         <span className="brand-mark" aria-hidden="true"><span className="trail-segment first" /><span className="trail-segment second" /><span className="trail-node first" /><span className="trail-node second" /><span className="trail-node third" /></span>
         <span>BioTrust <i>AI</i></span>
       </button>
@@ -479,7 +482,7 @@ function ResultsGate({ navigate, destination }: { navigate: (view: View) => void
 }
 
 export default function BioTrustApp() {
-  const [view, setView] = useState<View>("how");
+  const [view, setView] = useState<View>("melanoma");
   const [theme, setTheme] = useState<Theme>("dark");
   const [syntheticResult, setSyntheticResult] = useState<ExecutionResult | null>(null);
   const [selectedClaim, setSelectedClaim] = useState(claims[0]);
@@ -523,6 +526,7 @@ export default function BioTrustApp() {
     <main className="app-shell">
       <div className={mobileNav ? "mobile-nav open" : "mobile-nav"}><Sidebar active={view} hasResults={Boolean(syntheticResult)} theme={theme} onNavigate={navigate} onPrivacy={() => setPrivacyOpen(true)} onToggleTheme={toggleTheme} /><button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" /></div>
       <section className="workspace"><Topbar view={view} canExport={Boolean(syntheticResult)} onExport={exportAudit} onMenu={() => setMobileNav(true)} />
+        {view === "melanoma" && <MelanomaCaseStudyView onToast={notify} />}
         {view === "how" && <HowItWorksView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} hasResults={Boolean(syntheticResult)} />}
         {view === "overview" && <OverviewView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} hasResults={Boolean(syntheticResult)} />}
         {view === "projects" && <ProjectsView navigate={navigate} hasResults={Boolean(syntheticResult)} />}

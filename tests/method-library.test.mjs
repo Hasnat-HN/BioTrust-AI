@@ -5,6 +5,7 @@ import test from "node:test";
 const dataSource = await readFile(new URL("../app/data.ts", import.meta.url), "utf8");
 const appSource = await readFile(new URL("../app/BioTrustApp.tsx", import.meta.url), "utf8");
 const howSource = await readFile(new URL("../app/HowItWorksView.tsx", import.meta.url), "utf8");
+const melanomaSource = await readFile(new URL("../app/MelanomaCaseStudyView.tsx", import.meta.url), "utf8");
 
 test("ships a broad, reviewable built-in method catalog", () => {
   for (const slug of [
@@ -51,9 +52,10 @@ test("sidebar stays focused on navigation without inventing a researcher identit
 });
 
 test("the public demonstration begins empty and reveals results only after an explicit synthetic run", () => {
-  assert.match(appSource, /useState<View>\("how"\)/);
-  assert.match(appSource, /Run on synthetic data/);
-  assert.match(appSource, /No results are preloaded/);
+  assert.match(appSource, /useState<View>\("melanoma"\)/);
+  assert.match(melanomaSource, /Generate data \+ run analysis/);
+  assert.match(melanomaSource, /Results are sealed/);
+  assert.match(melanomaSource, /decision !== "accepted" && decision !== "modified"/);
   assert.match(appSource, /syntheticResult \? <TrustView/);
   assert.match(appSource, /syntheticResult \? <ClaimsView/);
   assert.match(appSource, /syntheticResult \? <ProvenanceView/);
