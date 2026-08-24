@@ -70,11 +70,18 @@ test("defaults to black and uses one neutral appearance control", () => {
 });
 
 test("explains the complete workflow with one consistent synthetic example", () => {
-  assert.match(howSource, /Understand the analysis before you run it/);
-  assert.match(howSource, /Group_B versus Group_A/);
+  assert.match(howSource, /Resolve a complex question into testable parts/);
+  assert.match(howSource, /associated with a reproducible expression program/);
+  assert.match(howSource, /Clinical_Score/);
+  assert.match(howSource, /without claiming causation, mediation, or cell abundance/);
   assert.match(howSource, /Technical_Batch/);
-  assert.match(howSource, /Scientific PDF · complete results CSV · machine-readable audit JSON/);
-  assert.match(howSource, /public GitHub Pages site can execute the fixed synthetic demonstration/);
-  assert.equal((howSource.match(/number: "0[1-6]"/g) ?? []).length, 6);
+  for (const branch of ["P1", "S1", "C1", "G1", "V1"]) assert.match(howSource, new RegExp(`id: "${branch}"`));
+  assert.match(howSource, /Robustness support; not replication/);
+  assert.match(howSource, /Shared pattern; not mediation or causation/);
+  assert.match(howSource, /Gene-set shift; not measured cell abundance/);
+  assert.match(howSource, /additional branches require controlled adapters rather than simulated results/);
   assert.match(appSource, /className="run-progress"/);
+  assert.match(appSource, /Linked analysis program/);
+  assert.match(appSource, /PROTOCOL LOCKED/);
+  assert.doesNotMatch(appSource, /Mock provider/);
 });

@@ -230,27 +230,35 @@ function ProjectsView({ navigate, hasResults }: { navigate: (view: View) => void
 }
 
 function AnalysisView({ onToast }: { onToast: (message: string) => void }) {
-  const [exposure, setExposure] = useState("Exposure_A");
-  const [outcome, setOutcome] = useState("Gene expression");
-  const [covariates, setCovariates] = useState(["Age", "Sex", "Technical_Batch"]);
-  const [robust, setRobust] = useState(true);
-  const [standardize, setStandardize] = useState(true);
-  const [proposal, setProposal] = useState<"PROPOSED" | "ACCEPTED" | "REJECTED">("PROPOSED");
+  const [question, setQuestion] = useState("Within Tissue_A, is Exposure_A associated with a reproducible expression program after adjustment for Technical_Batch, and is that program concordant with the separate Clinical_Score association without claiming causation, mediation, or cell abundance?");
+  const [enabledBranches, setEnabledBranches] = useState(["P1", "S1", "C1", "G1", "V1"]);
   const [confirmed, setConfirmed] = useState(false);
-  const formula = `~ ${exposure}${covariates.length ? ` + ${covariates.join(" + ")}` : ""}`;
-  const toggleCovariate = (name: string) => setCovariates((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name]);
+  const branches = [
+    ["P1", "Primary", "Exposure_A association", "edgeR quasi-likelihood", "~ Technical_Batch + Exposure_A", "Association only"],
+    ["S1", "Sensitivity", "Alternative count model", "DESeq2 Wald", "Same population and contrast as P1", "Robustness, not replication"],
+    ["C1", "Integration", "Clinical_Score concordance", "Spearman correlation", "Signed P1 vs Clinical_Score statistics", "Shared pattern, not mediation"],
+    ["G1", "Interpretation", "Cell_State_A gene-set shift", "cameraPR", "Pre-registered set and gene universe", "Enrichment, not abundance"],
+    ["V1", "Validation", "Held-out molecular score", "Repeated 5-fold CV", "All learned steps inside folds", "Internal, not external validation"],
+  ];
+  const toggleBranch = (id: string) => {
+    if (id === "P1") return;
+    setEnabledBranches((current) => current.includes(id) ? current.filter((branch) => branch !== id) : [...current, id]);
+    setConfirmed(false);
+  };
   return (
-    <div className="view analysis-view">
-      <div className="page-head"><div><span className="page-kicker">Structured planning</span><h1>New analysis</h1><p>Define the scientific question first. Every choice remains visible before execution.</p></div><Badge tone={confirmed ? "green" : "gray"}>{confirmed ? "PLAN CONFIRMED" : "DRAFT"}</Badge></div>
-      <div className="analysis-layout">
-        <section className="analysis-form">
-          <div className="form-section"><span className="form-number">01</span><div className="form-body"><h2>Scientific question</h2><p>What association should this analysis evaluate?</p><label>Research question<textarea defaultValue="Which genes are associated with Exposure_A after adjustment for the pre-specified covariates?" /></label><div className="form-grid"><label>Exposure<select value={exposure} onChange={(event) => setExposure(event.target.value)}><option>Exposure_A</option><option>Clinical_Score</option><option>Continuous_Trait</option></select></label><label>Outcome<select value={outcome} onChange={(event) => setOutcome(event.target.value)}><option>Gene expression</option><option>Molecular score</option></select></label></div></div></div>
-          <div className="form-section"><span className="form-number">02</span><div className="form-body"><h2>Population and covariates</h2><p>No covariate will be added or removed silently.</p><label>Sample population<input value="Tissue == Tissue_A" readOnly /></label><span className="field-label">Approved covariates</span><div className="check-grid">{["Age", "Sex", "Technical_Batch", "Clinical_Score"].map((name) => <label className="check-row" key={name}><input type="checkbox" checked={covariates.includes(name)} onChange={() => toggleCovariate(name)} /><span>{name}</span>{name === "Clinical_Score" && <small>Optional</small>}</label>)}</div></div></div>
-          <div className="form-section"><span className="form-number">03</span><div className="form-body"><h2>Method configuration</h2><p>Method choices are linked to verified Method Cards.</p><div className="method-selection"><span className="method-logo">L</span><div><strong>limma-voom</strong><small>RNA-seq differential expression · verified method</small></div><Badge>SELECTED</Badge></div><div className="toggle-row"><div><strong>Standardize continuous exposure</strong><small>Scale using analysis-population mean and SD</small></div><button className={`toggle ${standardize ? "on" : ""}`} onClick={() => setStandardize(!standardize)} aria-label="Toggle standardization"><i /></button></div><div className="toggle-row"><div><strong>Robust empirical Bayes</strong><small>Use eBayes(robust = TRUE)</small></div><button className={`toggle ${robust ? "on" : ""}`} onClick={() => setRobust(!robust)} aria-label="Toggle robust empirical Bayes"><i /></button></div></div></div>
+    <div className="view protocol-plan-view">
+      <div className="page-head"><div><span className="page-kicker">Protocol EX-A01 · version 1.0</span><h1>Analysis protocol</h1><p>Decompose the research objective into linked estimands, sensitivity analyses, validation, and explicit claim boundaries before execution.</p></div><Badge tone={confirmed ? "green" : "amber"}>{confirmed ? "PROTOCOL LOCKED" : "DESIGN REVIEW"}</Badge></div>
+      <div className="protocol-plan-layout">
+        <section className="protocol-plan-main">
+          <div className="protocol-objective"><span>01 / RESEARCH OBJECTIVE</span><label htmlFor="protocol-question">Complex scientific question</label><textarea id="protocol-question" value={question} onChange={(event) => { setQuestion(event.target.value); setConfirmed(false); }} /><dl><div><dt>Population</dt><dd>Tissue_A</dd></div><div><dt>Exposure</dt><dd>Exposure_A</dd></div><div><dt>Outcome</dt><dd>Genome-wide expression</dd></div><div><dt>Adjustment</dt><dd>Technical_Batch</dd></div></dl></div>
+          <div className="protocol-branch-builder"><div className="protocol-builder-head"><div><span>02 / REGISTERED BRANCHES</span><h2>Linked analysis program</h2><p>Keep P1 authoritative. Optional branches may challenge or narrow the conclusion; they cannot redefine the primary estimand.</p></div><strong>{enabledBranches.length} ACTIVE</strong></div>{branches.map(([id, role, title, method, specification, ceiling]) => { const enabled = enabledBranches.includes(id); return <article className={enabled ? "enabled" : ""} key={id}><button type="button" onClick={() => toggleBranch(id)} aria-pressed={enabled} aria-label={`${enabled ? "Disable" : "Enable"} ${id}`}><span>{enabled ? "✓" : "+"}</span></button><div><b>{id}</b><small>{role}</small></div><div><h3>{title}</h3><strong>{method}</strong><code>{specification}</code></div><div><span>CLAIM CEILING</span><p>{ceiling}</p></div></article>})}</div>
+          <div className="protocol-analysis-contract"><span>03 / ANALYSIS CONTRACT</span><div><article><strong>Primary test family</strong><p>All retained genome-wide features in P1; Benjamini–Hochberg FDR is applied once to the declared family.</p></article><article><strong>Robustness reporting</strong><p>Report sign and rank concordance, influential features, material reversals, and specification-dependent conclusions.</p></article><article><strong>Interpretation boundary</strong><p>Association, concordance, gene-set shift, and internal prediction remain separate evidence classes.</p></article><article><strong>Required provenance</strong><p>Question, branch versions, inputs, formulas, parameters, software, seeds, warnings, and output hashes.</p></article></div></div>
         </section>
-        <aside className="plan-aside">
-          <section className="panel exact-plan"><div className="section-head"><div><span className="panel-icon">⌁</span><div><h2>Exact analysis plan</h2><p>Authoritative structured preview</p></div></div></div><dl><div><dt>Dataset</dt><dd>Synthetic_Cohort</dd></div><div><dt>Population</dt><dd>Tissue == Tissue_A</dd></div><div><dt>Method</dt><dd>limma-voom</dd></div><div><dt>Formula</dt><dd><code>{formula}</code></dd></div><div><dt>Filtering</dt><dd>edgeR::filterByExpr</dd></div><div><dt>Normalization</dt><dd>TMM</dd></div><div><dt>Multiple testing</dt><dd>BH FDR · all retained genes</dd></div><div><dt>Options</dt><dd>{standardize ? "Standardized" : "Unscaled"} · robust {String(robust)}</dd></div></dl><div className="plan-warning"><span>!</span><p><strong>Confirmation required</strong>Execution is disabled until the researcher approves this exact plan.</p></div><button className="primary-button full" onClick={() => { setConfirmed(true); onToast("Analysis plan confirmed and locked"); }}>Confirm exact plan <span>✓</span></button></section>
-          <section className="panel ai-proposal"><div className="section-head"><div><span className="panel-icon amber">AI</span><div><h2>AI proposal</h2><p>Mock provider · sanitized context</p></div></div><Badge tone={proposal === "ACCEPTED" ? "green" : proposal === "REJECTED" ? "red" : "amber"}>{proposal}</Badge></div><p>Consider Technical_Batch because it may explain technical variation in the count matrix.</p><div className="proposal-limit"><strong>What this does not establish</strong><span>That Technical_Batch is a biological confounder, or that adjustment is always appropriate.</span></div><div className="proposal-actions"><button onClick={() => { setProposal("REJECTED"); onToast("AI proposal rejected; original record retained"); }}>Reject</button><button onClick={() => onToast("Modify mode opened in the structured plan")}>Modify</button><button className="accept" onClick={() => { setProposal("ACCEPTED"); if (!covariates.includes("Technical_Batch")) setCovariates([...covariates, "Technical_Batch"]); onToast("AI proposal accepted; USER_CHOICE record created"); }}>Accept</button></div></section>
+        <aside className="protocol-plan-aside">
+          <section><span>LOCKED SPECIFICATION</span><h2>Primary branch P1</h2><dl><div><dt>Dataset</dt><dd>Synthetic_Cohort</dd></div><div><dt>Population</dt><dd>Tissue_A</dd></div><div><dt>Method</dt><dd>edgeR QL</dd></div><div><dt>Design</dt><dd><code>~ Technical_Batch + Exposure_A</code></dd></div><div><dt>Contrast</dt><dd>Group_B vs Group_A</dd></div><div><dt>Filtering</dt><dd>filterByExpr</dd></div><div><dt>Normalization</dt><dd>TMM</dd></div><div><dt>Multiplicity</dt><dd>BH FDR</dd></div></dl></section>
+          <section className="protocol-review-gates"><span>PRE-RUN REVIEW</span><h2>Blocking checks</h2>{["Contrast identifiable after adjustment", "Replicated groups and exact sample matching", "Method matches raw count input", "Test families declared before results", "Claim ceilings accepted for every branch"].map((check) => <p key={check}><i>○</i>{check}</p>)}</section>
+          <div className="plan-warning"><span>!</span><p><strong>Confirmation is a protocol event</strong>Changing the question or any branch invalidates this confirmation and creates a new version.</p></div>
+          <button className="primary-button full" onClick={() => { setConfirmed(true); onToast("Protocol EX-A01 confirmed and locked"); }}>Confirm protocol <span>✓</span></button>
         </aside>
       </div>
     </div>
@@ -262,7 +270,7 @@ function ExecutionView({ onToast, syntheticResult, onSyntheticResult }: { onToas
   const [countsFile, setCountsFile] = useState<File | null>(null);
   const [metadataFile, setMetadataFile] = useState<File | null>(null);
   const [method, setMethod] = useState("edger_qlf");
-  const [researchQuestion, setResearchQuestion] = useState("Which features differ between Group_B and Group_A after adjustment for Technical_Batch?");
+  const [researchQuestion, setResearchQuestion] = useState("Within Tissue_A, which expression features differ between Exposure_A Group_B and Group_A after adjustment for Technical_Batch?");
   const [conditionColumn, setConditionColumn] = useState("condition");
   const [referenceLevel, setReferenceLevel] = useState("Group_A");
   const [comparisonLevel, setComparisonLevel] = useState("Group_B");
@@ -355,7 +363,7 @@ function ExecutionView({ onToast, syntheticResult, onSyntheticResult }: { onToas
       isSynthetic: synthetic,
       projectName: synthetic ? "Synthetic transcriptomic association study" : "Controlled RNA-seq analysis",
       datasetName: synthetic ? "Synthetic_Cohort" : countsFile?.name ?? "Researcher dataset",
-      researchQuestion: synthetic ? "Which features differ between Group_B and Group_A under the fixed demonstration design?" : researchQuestion,
+      researchQuestion: synthetic ? "Within Tissue_A, which expression features differ between Exposure_A Group_B and Group_A after adjustment for Technical_Batch?" : researchQuestion,
       conditionColumn,
       covariates: synthetic ? ["Technical_Batch"] : selectedCovariates,
     });
