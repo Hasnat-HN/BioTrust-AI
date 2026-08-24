@@ -93,7 +93,7 @@ export type InterpretationConnection = {
 
 export type MelanomaInterpretation = {
   generated_by: "BioTrust deterministic evidence-synthesis rules v1";
-  neural_adapter_status: "NOT_CONNECTED";
+  neural_engine_status: "EXECUTED_SEPARATELY";
   summary: string;
   connections: InterpretationConnection[];
 };
@@ -196,7 +196,9 @@ export function generateSyntheticMelanomaDataset(seed = MELANOMA_DEMO_SEED): Mel
     const libraryScale = Math.exp(random.normal() * 0.13);
     return featureIds.map((_, featureIndex) => {
       const program = programs[featureIndex];
-      const base = 3.45 + (featureIndex % 31) / 23 + random.normal() * 0.13;
+      const base = program === "Background" && featureIndex % 4 === 0
+        ? -0.7 + (featureIndex % 7) * 0.12 + random.normal() * 0.18
+        : 3.45 + (featureIndex % 31) / 23 + random.normal() * 0.13;
       let signal = 0;
       if (program === "T-cell-inflamed program") signal = 4.0 * sample.tCell + 0.10 * sample.responseValue;
       if (program === "Interferon-response program") signal = 2.7 * sample.tCell + 0.18 * sample.responseValue;
@@ -290,7 +292,7 @@ function designMatrix(samples: MelanomaSample[], adjusted: boolean): number[][] 
   });
 }
 
-function logCpm(dataset: MelanomaDataset): number[][] {
+export function calculateLogCpm(dataset: MelanomaDataset): number[][] {
   return dataset.counts.map((sampleCounts) => {
     const librarySize = sampleCounts.reduce((total, value) => total + value, 0);
     return sampleCounts.map((count) => Math.log2(((count + 0.5) * 1_000_000) / (librarySize + 1)));
@@ -376,7 +378,7 @@ export function melanomaResultsCsv(result: MelanomaAnalysisResult): string {
 
 export function runSyntheticMelanomaAnalysis(seed = MELANOMA_DEMO_SEED, purityThreshold = 0.5): { dataset: MelanomaDataset; result: MelanomaAnalysisResult } {
   const dataset = generateSyntheticMelanomaDataset(seed);
-  const expression = logCpm(dataset);
+  const expression = calculateLogCpm(dataset);
   const tCellFeatures = dataset.programs.map((program, index) => ({ program, index })).filter(({ program }) => program === "T-cell-inflamed program").map(({ index }) => index);
   const programScore = scoreProgram(expression, tCellFeatures);
   const fullFormula = "T-cell program score ~ response + age + recorded sex + stage + biopsy site + prior therapy + tumor purity + batch";
@@ -456,7 +458,7 @@ export function buildMelanomaInterpretation(result: MelanomaAnalysisResult): Mel
   const background = result.program_summaries.find((program) => program.program === "Background")!;
   return {
     generated_by: "BioTrust deterministic evidence-synthesis rules v1",
-    neural_adapter_status: "NOT_CONNECTED",
+    neural_engine_status: "EXECUTED_SEPARATELY",
     summary: sameDirection
       ? "The synthetic T-cell-inflamed association remains directionally stable after multivariable adjustment and the higher-purity sensitivity filter. Program-level coherence supports a structured synthetic signal, while background discoveries and the observational design limit interpretation."
       : "The sensitivity result changes direction, so the primary synthetic association is not robust enough for a positive interpretation.",

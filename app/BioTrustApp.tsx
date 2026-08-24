@@ -526,7 +526,7 @@ export default function BioTrustApp() {
     <main className="app-shell">
       <div className={mobileNav ? "mobile-nav open" : "mobile-nav"}><Sidebar active={view} hasResults={Boolean(syntheticResult)} theme={theme} onNavigate={navigate} onPrivacy={() => setPrivacyOpen(true)} onToggleTheme={toggleTheme} /><button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" /></div>
       <section className="workspace"><Topbar view={view} canExport={Boolean(syntheticResult)} onExport={exportAudit} onMenu={() => setMobileNav(true)} />
-        {view === "melanoma" && <MelanomaCaseStudyView onToast={notify} />}
+        {view === "melanoma" && <MelanomaCaseStudyView onToast={notify} onOpenRunner={() => navigate("execution")} />}
         {view === "how" && <HowItWorksView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} hasResults={Boolean(syntheticResult)} />}
         {view === "overview" && <OverviewView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} hasResults={Boolean(syntheticResult)} />}
         {view === "projects" && <ProjectsView navigate={navigate} hasResults={Boolean(syntheticResult)} />}

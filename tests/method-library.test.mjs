@@ -53,9 +53,10 @@ test("sidebar stays focused on navigation without inventing a researcher identit
 
 test("the public demonstration begins empty and reveals results only after an explicit synthetic run", () => {
   assert.match(appSource, /useState<View>\("melanoma"\)/);
-  assert.match(melanomaSource, /Generate data \+ run analysis/);
-  assert.match(melanomaSource, /Results are sealed/);
-  assert.match(melanomaSource, /decision !== "accepted" && decision !== "modified"/);
+  assert.match(melanomaSource, /Explore synthetic dataset/);
+  assert.match(melanomaSource, /Run and compare methods/);
+  assert.match(melanomaSource, /Results sealed/);
+  assert.match(melanomaSource, /decision !== "accepted"/);
   assert.match(appSource, /syntheticResult \? <TrustView/);
   assert.match(appSource, /syntheticResult \? <ClaimsView/);
   assert.match(appSource, /syntheticResult \? <ProvenanceView/);

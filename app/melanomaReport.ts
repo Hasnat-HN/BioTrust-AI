@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { buildMelanomaInterpretation, type MelanomaAnalysisResult } from "./melanomaDemo.ts";
+import type { DgeMethodComparison, NeuralIntegrationResult } from "./melanomaMethods.ts";
 
 const ink: [number, number, number] = [29, 38, 42];
 const muted: [number, number, number] = [85, 99, 103];
@@ -48,7 +49,7 @@ function footer(doc: jsPDF) {
   }
 }
 
-export function createMelanomaReport(result: MelanomaAnalysisResult, purityThreshold = 0.5): jsPDF {
+export function createMelanomaReport(result: MelanomaAnalysisResult, purityThreshold = 0.5, comparison?: DgeMethodComparison, neural?: NeuralIntegrationResult): jsPDF {
   const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
   const interpretation = buildMelanomaInterpretation(result);
 
@@ -78,7 +79,7 @@ export function createMelanomaReport(result: MelanomaAnalysisResult, purityThres
   doc.setFont("times", "normal");
   doc.setFontSize(13);
   doc.setTextColor(...ink);
-  const question = "In baseline melanoma tumors, is a stronger T-cell-inflamed expression program associated with response to PD-1 blockade after accounting for age, recorded sex, disease stage, biopsy site, prior systemic therapy, tumor purity, and sequencing batch?";
+  const question = "In baseline melanoma tumors, which expression features and tumor-microenvironment programs are associated with synthetic PD-1 response after accounting for age, recorded sex, disease stage, biopsy site, prior systemic therapy, tumor purity, and sequencing batch?";
   doc.text(doc.splitTextToSize(question, 174), 18, 124);
 
   section(doc, "Accepted analysis proposal", 160);
@@ -89,8 +90,8 @@ export function createMelanomaReport(result: MelanomaAnalysisResult, purityThres
     styles: { font: "helvetica", fontSize: 7.5, cellPadding: 2.8, textColor: muted, lineColor: line, lineWidth: 0.1, valign: "top" },
     columnStyles: { 0: { cellWidth: 39, fontStyle: "bold", textColor: ink, fillColor: pale }, 1: { cellWidth: 139 } },
     body: [
-      ["Estimand", "Adjusted mean difference in a predeclared T-cell-inflamed expression score between synthetic response groups."],
-      ["Primary model", "Score ~ response + age + recorded sex + stage + biopsy site + prior therapy + tumor purity + batch"],
+      ["Estimand", "Adjusted feature-level expression differences plus a predeclared T-cell-inflamed program summary between synthetic response groups."],
+      ["Primary model", "log2 CPM feature ~ response + age + recorded sex + stage + biopsy site + prior therapy + tumor purity + batch"],
       ["Sensitivity", `Repeat the full model among synthetic tumors with purity >= ${purityThreshold.toFixed(2)}.`],
       ["Feature screen", "1,200 log2 CPM feature models with Benjamini-Hochberg adjustment across all features."],
       ["Decision record", "AI_CHOICE proposed the plan; USER_CHOICE accepted it before data generation and execution."],
@@ -100,6 +101,52 @@ export function createMelanomaReport(result: MelanomaAnalysisResult, purityThres
   const page1Y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
   label(doc, "Claim ceiling", 16, page1Y);
   paragraph(doc, "Association in this synthetic fixture only. Not causation, patient benefit, cell abundance, biomarker validation, or clinical utility.", 16, page1Y + 6, 178, 8, [123, 66, 60]);
+
+  if (comparison && neural) {
+    doc.addPage();
+    section(doc, "Multi-method DGE comparison", 17);
+    paragraph(doc, "Every method used the same synthetic samples, feature universe, log2 CPM matrix, response labels, and Benjamini-Hochberg threshold.", 16, 27, 178, 7.6);
+    autoTable(doc, {
+      startY: 34,
+      margin: { left: 16, right: 16 },
+      styles: { font: "helvetica", fontSize: 7.2, cellPadding: 2.5, textColor: muted, lineColor: line, lineWidth: 0.1 },
+      headStyles: { fillColor: [24, 62, 56], textColor: [255, 255, 255] },
+      head: [["Method", "Role", "Covariate adjusted", "FDR < 0.05", "Higher", "Lower"]],
+      body: comparison.runs.map((run) => [run.method.short_name, run.method.role, run.method.adjusts_covariates ? "Yes" : "No", String(run.significant_count), String(run.positive_count), String(run.negative_count)]),
+    });
+    const pairY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+    section(doc, "Pairwise agreement", pairY);
+    autoTable(doc, {
+      startY: pairY + 8,
+      margin: { left: 16, right: 16 },
+      styles: { font: "helvetica", fontSize: 7.2, cellPadding: 2.5, textColor: muted, lineColor: line, lineWidth: 0.1 },
+      headStyles: { fillColor: [32, 54, 61], textColor: [255, 255, 255] },
+      head: [["Method pair", "Effect-rank rho", "Sign agreement", "Top-50 overlap", "FDR overlap"]],
+      body: comparison.pairwise.map((pair) => [`${pair.method_a} vs ${pair.method_b}`, fmt(pair.effect_spearman, 3), `${fmt(100 * pair.sign_concordance, 1)}%`, `${pair.top_50_overlap} / 50`, String(pair.fdr_overlap)]),
+    });
+    const recommendY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+    section(doc, "Method recommendation", recommendY);
+    label(doc, comparison.recommendation.title, 16, recommendY + 10);
+    paragraph(doc, comparison.recommendation.rationale.map((reason, index) => `${index + 1}. ${reason}`).join("  "), 16, recommendY + 17, 178, 8, ink);
+    paragraph(doc, comparison.recommendation.caution, 16, recommendY + 35, 178, 7.5, [126, 77, 51]);
+    section(doc, "Neural integration - exploratory prediction only", recommendY + 45);
+    autoTable(doc, {
+      startY: recommendY + 53,
+      margin: { left: 16, right: 16 },
+      theme: "plain",
+      styles: { font: "helvetica", fontSize: 7.4, cellPadding: 2.5, textColor: muted, lineColor: line, lineWidth: 0.1 },
+      columnStyles: { 0: { fontStyle: "bold", fillColor: pale, textColor: ink }, 2: { fontStyle: "bold", fillColor: pale, textColor: ink } },
+      body: [
+        ["Cross-validated AUROC", fmt(neural.auc, 3), "Balanced accuracy", `${fmt(100 * neural.balanced_accuracy, 1)}%`],
+        ["Brier score", fmt(neural.brier_score, 3), "Architecture", neural.architecture],
+        ["Folds", String(neural.folds), "Epochs per fold", String(neural.epochs_per_fold)],
+      ],
+    });
+    const importanceY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 9;
+    label(doc, "Highest normalized weight-path sensitivities", 16, importanceY);
+    paragraph(doc, neural.importance.slice(0, 6).map((item) => `${item.feature}: ${fmt(100 * item.importance, 1)}%`).join(" | "), 16, importanceY + 7, 178, 7.3);
+    paragraph(doc, "Neural performance is internal prediction in one synthetic cohort. It does not validate a biomarker, explain mechanism, or replace the statistical DGE models.", 16, importanceY + 18, 178, 7.2, [126, 66, 59]);
+  }
 
   doc.addPage();
   section(doc, "Synthetic cohort and multivariable design", 17);
@@ -172,7 +219,7 @@ export function createMelanomaReport(result: MelanomaAnalysisResult, purityThres
 
   const synthesisY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
   section(doc, "Evidence synthesis engine", synthesisY);
-  label(doc, `${interpretation.generated_by} / neural adapter ${interpretation.neural_adapter_status}`, 16, synthesisY + 9);
+  label(doc, `${interpretation.generated_by} / neural integration ${interpretation.neural_engine_status}`, 16, synthesisY + 9);
   paragraph(doc, interpretation.summary, 16, synthesisY + 15, 178, 8.2, ink);
   autoTable(doc, {
     startY: synthesisY + 32,
@@ -235,7 +282,6 @@ export function createMelanomaReport(result: MelanomaAnalysisResult, purityThres
   return doc;
 }
 
-export function downloadMelanomaReport(result: MelanomaAnalysisResult, purityThreshold = 0.5) {
-  createMelanomaReport(result, purityThreshold).save("biotrust-synthetic-melanoma-tme-report.pdf");
+export function downloadMelanomaReport(result: MelanomaAnalysisResult, purityThreshold = 0.5, comparison?: DgeMethodComparison, neural?: NeuralIntegrationResult) {
+  createMelanomaReport(result, purityThreshold, comparison, neural).save("biotrust-synthetic-melanoma-multimethod-report.pdf");
 }
-

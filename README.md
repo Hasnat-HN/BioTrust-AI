@@ -14,17 +14,21 @@ The aim is simple: AI should help researchers reason through an analysis, not be
 
 The public application runs the complete synthetic workflow in the browser and produces downloadable PDF, CSV, and JSON records. Private dataset uploads remain disabled unless a separately secured computation service is connected. Run the project locally to execute real count matrices within the controlled Docker boundary.
 
-The default worked case asks whether a synthetic T-cell-inflamed expression program is associated with synthetic PD-1 response in melanoma. The researcher must review the estimand, seven clinical and technical covariates, assumptions, reference levels, sensitivity threshold, and claim ceiling before any data are generated or analyzed.
+The default worked case asks which synthetic expression features and tumor-microenvironment programs are associated with synthetic PD-1 response in melanoma. The researcher first explores the count matrix graphically, then chooses at least two differential-expression methods, locks a shared comparison contract, and accepts the analysis plan before inferential results are shown.
 
 ## What is implemented
 
 - Interactive Next.js/Vinext research workspace that ships with synthetic demonstration data and connects to the local controlled execution API for real datasets
 - Deterministic melanoma tumor-microenvironment case with 180 synthetic tumors, 1,200 generic expression features, and no real patient or gene data
+- Graphical pre-analysis profile of data type, dimensions, group sizes, library sizes, zero rate, tumor purity, batches, stage, biopsy site, and method-suitability checks
+- Researcher-selectable browser comparison of adjusted log-CPM regression, Welch screening, and Wilcoxon rank-sum screening on the same samples and feature universe
+- Pairwise effect-rank agreement, sign concordance, top-feature overlap, FDR overlap, consensus features, and a question-matched method recommendation
 - Multivariable score and feature models adjusting for age, recorded sex, disease stage, biopsy site, prior systemic therapy, tumor purity, and sequencing batch
 - Structured analysis-plan builder with an exact formula preview
 - AI proposal lifecycle with explicit accept, modify, and reject actions
 - Result-review and adversarial-review surface
-- Evidence-synthesis engine that connects adjustment effects, sensitivity results, program coherence, contradictions, claim boundaries, and next analyses back to cited evidence IDs
+- Evidence-synthesis engine that connects method agreement, disagreement, covariate capability, neural prediction, claim boundaries, and next analyses back to cited evidence IDs
+- Deterministic 13-input, 8-hidden-unit neural integration model with five-fold cross-validation, AUROC, balanced accuracy, Brier score, and explicitly non-causal weight-path sensitivity
 - Claim ledger with scientific statement classifications
 - Searchable Method Card library
 - 18 built-in Method Cards including edgeR, DESeq2, limma, camera, ROAST, fgsea, dream, SVA, ComBat-seq, regression, correlation, and PCA
@@ -76,7 +80,7 @@ npm test
 .venv/bin/pytest backend/tests
 ```
 
-The hosted application is frontend-contained unless the repository variable `BIOTRUST_API_URL` points to an authenticated controlled runner whose CORS policy explicitly permits the GitHub Pages origin. Do not configure a public unauthenticated endpoint for private research data. The current evidence-synthesis engine is a transparent local rule system. Its optional neural adapter is deliberately marked `NOT_CONNECTED`; any future model must receive only sanitized summaries, cite executed evidence records, and require researcher approval. Custom Method Cards document methods but do not make arbitrary code executable.
+The hosted application is frontend-contained unless the repository variable `BIOTRUST_API_URL` points to an authenticated controlled runner whose CORS policy explicitly permits the GitHub Pages origin. Do not configure a public unauthenticated endpoint for private research data. The hosted neural engine operates only on the generated synthetic cohort and performs exploratory prediction; it is not a causal, mechanistic, diagnostic, or biomarker-validation tool. Count-native edgeR and DESeq2 execution remains inside the controlled R service. Custom Method Cards document methods but do not make arbitrary code executable.
 
 ## Ownership and permitted use
 

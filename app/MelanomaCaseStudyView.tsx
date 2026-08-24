@@ -1,24 +1,36 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   MELANOMA_DEMO_SEED,
-  buildMelanomaInterpretation,
+  generateSyntheticMelanomaDataset,
   melanomaCountsCsv,
   melanomaMetadataCsv,
-  melanomaResultsCsv,
   runSyntheticMelanomaAnalysis,
   type MelanomaAnalysisResult,
   type MelanomaDataset,
-  type ModelResult,
 } from "./melanomaDemo";
+import {
+  browserDgeMethods,
+  buildComparisonSynthesis,
+  dgeComparisonCsv,
+  exploreMelanomaDataset,
+  runDgeMethodComparison,
+  runNeuralIntegration,
+  type BrowserDgeMethodId,
+  type DatasetExploration,
+  type DgeMethodComparison,
+  type DgeMethodRun,
+  type NeuralIntegrationResult,
+} from "./melanomaMethods";
 
-type Decision = "pending" | "accepted" | "modified" | "rejected";
+type Decision = "pending" | "accepted" | "rejected";
+type FullRun = { dataset: MelanomaDataset; result: MelanomaAnalysisResult; comparison: DgeMethodComparison; neural: NeuralIntegrationResult };
 
-const researchQuestion = "In baseline melanoma tumors, is a stronger T-cell-inflamed expression program associated with response to PD-1 blockade after accounting for age, recorded sex, disease stage, biopsy site, prior systemic therapy, tumor purity, and sequencing batch?";
-
-const formatNumber = (value: number, digits = 2) => value.toFixed(digits);
+const researchQuestion = "In baseline melanoma tumors, which expression features and tumor-microenvironment programs are associated with synthetic PD-1 response after accounting for age, recorded sex, disease stage, biopsy site, prior systemic therapy, tumor purity, and sequencing batch?";
+const format = (value: number, digits = 2) => value.toFixed(digits);
 const formatP = (value: number) => value < 0.001 ? value.toExponential(2) : value.toFixed(3);
+const compact = (value: number) => Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);
 
 function downloadText(filename: string, content: string, type = "text/plain") {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -29,272 +41,128 @@ function downloadText(filename: string, content: string, type = "text/plain") {
   URL.revokeObjectURL(url);
 }
 
-function ModelRow({ model }: { model: ModelResult }) {
-  return (
-    <tr>
-      <th><strong>{model.label}</strong><small>{model.formula}</small></th>
-      <td>{model.sample_count}</td>
-      <td>{formatNumber(model.response_effect)}</td>
-      <td>{formatNumber(model.confidence_low)} to {formatNumber(model.confidence_high)}</td>
-      <td>{formatP(model.p_value)}</td>
-    </tr>
-  );
+function BarList({ rows, total }: { rows: Array<{ label: string; count: number }>; total: number }) {
+  return <div className="explore-bar-list">{rows.map((row) => <div key={row.label}><span><strong>{row.label}</strong><b>{row.count}</b></span><i><em style={{ width: `${100 * row.count / total}%` }} /></i></div>)}</div>;
 }
 
-export default function MelanomaCaseStudyView({ onToast }: { onToast: (message: string) => void }) {
+function DatasetExplorer({ exploration }: { exploration: DatasetExploration }) {
+  const histogramMaximum = Math.max(...exploration.library_size.histogram.map((bin) => bin.count));
+  return <section className="dataset-explorer">
+    <header className="lab-section-head"><div><span>01 · DATASET EXPLORATION</span><h2>Know the matrix before choosing a method.</h2><p>This descriptive pass reads structure and composition only. It does not test the response hypothesis.</p></div><span className="explore-complete">PROFILE COMPLETE</span></header>
+    <div className="data-metrics"><article><span>Data type</span><strong>Bulk RNA-seq counts</strong><small>non-negative integers</small></article><article><span>Samples</span><strong>{exploration.matrix.samples}</strong><small>{exploration.groups.responder} responder · {exploration.groups.non_responder} non-responder</small></article><article><span>Features</span><strong>{exploration.matrix.features.toLocaleString()}</strong><small>generic synthetic IDs</small></article><article><span>Matrix cells</span><strong>{compact(exploration.matrix.cells)}</strong><small>{(100 * exploration.matrix.zero_rate).toFixed(1)}% zeros</small></article></div>
+    <div className="exploration-grid">
+      <section className="explore-chart"><header><div><span>LIBRARY SIZE DISTRIBUTION</span><h3>Counts per sample</h3></div><small>log10 scale</small></header><div className="histogram" aria-label="Library size histogram">{exploration.library_size.histogram.map((bin, index) => <div key={`${bin.label}-${index}`}><i style={{ height: `${Math.max(5, 100 * bin.count / histogramMaximum)}%` }} /><span>{bin.label.split("-")[0]}</span></div>)}</div><footer><span>Min {compact(exploration.library_size.minimum)}</span><span>Median {compact(exploration.library_size.median)}</span><span>Max {compact(exploration.library_size.maximum)}</span></footer></section>
+      <section className="explore-chart composition"><header><div><span>TUMOR PURITY</span><h3>Admixture structure</h3></div><small>synthetic fraction</small></header><BarList rows={exploration.purity_bins} total={exploration.matrix.samples} /></section>
+      <section className="explore-chart composition"><header><div><span>TECHNICAL DESIGN</span><h3>Sequencing batches</h3></div><small>3 levels</small></header><BarList rows={exploration.batch_counts} total={exploration.matrix.samples} /></section>
+      <section className="explore-chart composition"><header><div><span>CLINICAL COMPOSITION</span><h3>Stage and biopsy site</h3></div><small>model covariates</small></header><BarList rows={[...exploration.stage_counts, ...exploration.site_counts]} total={exploration.matrix.samples} /></section>
+    </div>
+    <div className="suitability-checks"><header><span>METHOD SUITABILITY CHECK</span><h3>What the data structure allows—and what it requires.</h3></header>{exploration.checks.map((check) => <article key={check.label}><b className={check.status.toLowerCase()}>{check.status}</b><div><strong>{check.label}</strong><p>{check.detail}</p></div></article>)}</div>
+  </section>;
+}
+
+function MethodResultTable({ run }: { run: DgeMethodRun }) {
+  return <div className="table-scroll"><table className="comparison-result-table"><thead><tr><th>Feature</th><th>Program</th><th>Effect</th><th>Statistic</th><th>p-value</th><th>BH FDR</th></tr></thead><tbody>{run.results.slice(0, 12).map((row) => <tr key={row.feature_id}><th>{row.feature_id}</th><td>{row.program}</td><td>{row.response_effect > 0 ? "+" : ""}{format(row.response_effect, 3)}</td><td>{format(row.statistic)}</td><td>{formatP(row.p_value)}</td><td>{formatP(row.adjusted_p_value)}</td></tr>)}</tbody></table></div>;
+}
+
+export default function MelanomaCaseStudyView({ onToast, onOpenRunner }: { onToast: (message: string) => void; onOpenRunner: () => void }) {
+  const [explored, setExplored] = useState<{ dataset: MelanomaDataset; summary: DatasetExploration } | null>(null);
+  const [selectedMethods, setSelectedMethods] = useState<BrowserDgeMethodId[]>(["adjusted_ols", "welch_t", "wilcoxon"]);
+  const [purityThreshold, setPurityThreshold] = useState(0.5);
   const [decision, setDecision] = useState<Decision>("pending");
   const [acknowledged, setAcknowledged] = useState(false);
-  const [showModification, setShowModification] = useState(false);
-  const [purityThreshold, setPurityThreshold] = useState(0.5);
   const [running, setRunning] = useState(false);
-  const [run, setRun] = useState<{ dataset: MelanomaDataset; result: MelanomaAnalysisResult } | null>(null);
-  const [showSynthesis, setShowSynthesis] = useState(false);
-  const decisionLabel = decision === "modified" ? "MODIFIED + ACCEPTED" : decision === "accepted" ? "ACCEPTED" : decision === "rejected" ? "REJECTED" : "AWAITING DECISION";
-  const synthesis = useMemo(() => run ? buildMelanomaInterpretation(run.result) : null, [run]);
-  const audit = useMemo(() => run ? {
-    format: "biotrust-synthetic-melanoma-audit",
-    version: 1,
-    synthetic: true,
-    research_question: researchQuestion,
-    ai_choice: {
-      proposal: "Multivariable adjusted T-cell program-score model with feature-level screen and a tumor-purity sensitivity analysis.",
-      production_recommendation: "edgeR quasi-likelihood for count-level differential expression and CAMERA for competitive gene-set testing in a controlled R runner.",
-    },
-    user_choice: { decision, sensitivity_purity_threshold: purityThreshold, acknowledged_synthetic_only: acknowledged },
-    execution: run.result,
-    interpretation: synthesis,
-  } : null, [acknowledged, decision, purityThreshold, run, synthesis]);
+  const [output, setOutput] = useState<FullRun | null>(null);
+  const [activeMethod, setActiveMethod] = useState<BrowserDgeMethodId>("adjusted_ols");
+  const interpretation = output ? buildComparisonSynthesis(output.comparison, output.neural) : null;
 
-  const accept = (modified = false) => {
-    if (!acknowledged) {
-      onToast("Confirm the synthetic-data notice before accepting the proposal");
-      return;
-    }
-    setDecision(modified ? "modified" : "accepted");
-    setShowModification(false);
-    setRun(null);
-    setShowSynthesis(false);
-    onToast(modified ? "Modified proposal accepted and recorded" : "Proposal accepted and recorded");
+  const explore = () => {
+    const dataset = generateSyntheticMelanomaDataset();
+    setExplored({ dataset, summary: exploreMelanomaDataset(dataset) });
+    setDecision("pending");
+    setOutput(null);
+    window.setTimeout(() => document.getElementById("dataset-profile")?.scrollIntoView({ behavior: "smooth", block: "start" }), 40);
   };
 
-  const reject = () => {
-    setDecision("rejected");
-    setRun(null);
-    setShowSynthesis(false);
-    setRunning(false);
-    onToast("Proposal rejected; no analysis was run");
+  const toggleMethod = (id: BrowserDgeMethodId) => {
+    setSelectedMethods((current) => current.includes(id) ? current.filter((method) => method !== id) : [...current, id]);
+    setDecision("pending");
+    setOutput(null);
+  };
+
+  const accept = () => {
+    if (selectedMethods.length < 2) return onToast("Select at least two methods so their results can be compared");
+    if (!acknowledged) return onToast("Confirm the synthetic-data and method-boundary notice first");
+    setDecision("accepted");
+    onToast("Multi-method analysis plan accepted");
   };
 
   const execute = () => {
-    if (decision !== "accepted" && decision !== "modified") return;
+    if (!explored || decision !== "accepted") return;
     setRunning(true);
-    setRun(null);
-    setShowSynthesis(false);
+    setOutput(null);
     window.setTimeout(() => {
-      const output = runSyntheticMelanomaAnalysis(MELANOMA_DEMO_SEED, purityThreshold);
-      setRun(output);
+      const base = runSyntheticMelanomaAnalysis(MELANOMA_DEMO_SEED, purityThreshold);
+      const comparison = runDgeMethodComparison(base.dataset, base.result, selectedMethods);
+      const neural = runNeuralIntegration(base.dataset);
+      setOutput({ ...base, comparison, neural });
+      setActiveMethod(comparison.recommendation.method_id);
       setRunning(false);
-      onToast("Synthetic melanoma analysis completed in this browser");
+      onToast(`${selectedMethods.length} DGE methods and the neural integration model completed`);
     }, 180);
   };
 
+  const activeRun = output?.comparison.runs.find((run) => run.method.id === activeMethod) ?? output?.comparison.runs[0];
+  const audit = output ? {
+    format: "biotrust-melanoma-multimethod-audit",
+    version: 2,
+    synthetic: true,
+    seed: MELANOMA_DEMO_SEED,
+    research_question: researchQuestion,
+    dataset_exploration: explored?.summary,
+    user_choice: { decision, selected_methods: selectedMethods, purity_threshold: purityThreshold },
+    statistical_execution: output.result,
+    method_comparison: output.comparison,
+    neural_integration: output.neural,
+    evidence_synthesis: interpretation,
+  } : null;
+
   const downloadPdf = async () => {
-    if (!run) return;
+    if (!output) return;
     const { downloadMelanomaReport } = await import("./melanomaReport");
-    downloadMelanomaReport(run.result, purityThreshold);
+    downloadMelanomaReport(output.result, purityThreshold, output.comparison, output.neural);
   };
 
-  return (
-    <div className="view melanoma-case-view">
-      <header className="case-header">
-        <div className="case-id"><span>SYNTHETIC CASE</span><strong>MEL-TME-01</strong><i>SEED {MELANOMA_DEMO_SEED}</i></div>
-        <span className={`case-decision ${decision}`}>{decisionLabel}</span>
-      </header>
+  return <div className="view melanoma-lab-view">
+    <header className="case-header"><div className="case-id"><span>LIVE SYNTHETIC CASE</span><strong>MEL-TME-02</strong><i>BUILD 2 · SEED {MELANOMA_DEMO_SEED}</i></div><span className={`case-decision ${output ? "accepted" : decision}`}>{output ? "ANALYSIS COMPLETE" : decision === "accepted" ? "PLAN ACCEPTED" : "EXPLORATION"}</span></header>
+    <section className="lab-hero"><div><span className="page-kicker">Melanoma tumor microenvironment · interactive method laboratory</span><h1>Explore first. Compare methods. Then interpret.</h1><p>Generate one reproducible synthetic RNA-seq cohort, inspect its structure graphically, choose multiple differential-expression methods, compare their conclusions, and test a small neural integration model without confusing prediction with evidence.</p><div className="lab-hero-actions"><button className="primary-button explore-button" onClick={explore}>{explored ? "Regenerate same dataset" : "Explore synthetic dataset"} <span>→</span></button><small>No upload · no login · no result shown before you run</small></div></div><aside><span>ANALYSIS ROUTE</span>{[["01","Explore","Matrix + covariates"],["02","Choose","2 or more methods"],["03","Run","Same data, same universe"],["04","Compare","Agreement + disagreement"],["05","Connect","Statistics + neural boundary"]].map(([number,title,detail]) => <div key={number}><b>{number}</b><p><strong>{title}</strong><small>{detail}</small></p></div>)}</aside></section>
 
-      <section className="case-hero">
-        <div>
-          <span className="page-kicker">Worked research example · melanoma tumor microenvironment</span>
-          <h1>A scientific question you can actually run.</h1>
-          <p>Follow a complete decision trail from a researcher&apos;s question to a deterministic browser calculation. No result is preloaded and every value is synthetic.</p>
-        </div>
-        <dl>
-          <div><dt>Study design</dt><dd>Baseline bulk RNA-seq</dd></div>
-          <div><dt>Synthetic cohort</dt><dd>180 tumors</dd></div>
-          <div><dt>Features</dt><dd>1,200 generic IDs</dd></div>
-          <div><dt>Covariates</dt><dd>7 clinical + technical</dd></div>
-        </dl>
-      </section>
+    {!explored && <section className="explore-gate"><div className="matrix-preview"><span>COUNT MATRIX</span><div>{Array.from({ length: 60 }, (_, index) => <i key={index} style={{ opacity: .18 + ((index * 17) % 70) / 100 }} />)}</div><footer><b>180 samples</b><b>1,200 features</b></footer></div><div><span className="page-kicker">Nothing inferred yet</span><h2>The first action is descriptive, not statistical.</h2><p>Click Explore to generate the fixed synthetic cohort. BioTrust will identify the data type, dimensions, group sizes, library-size distribution, purity structure, batches, clinical composition, and which methods are defensible.</p><button onClick={explore}>Explore now <span>→</span></button></div></section>}
 
-      <ol className="case-timeline" aria-label="Analysis workflow">
-        <li className="active"><span>01</span><strong>Ask</strong><small>Define the estimand</small></li>
-        <li className={decision !== "pending" ? "active" : ""}><span>02</span><strong>Review</strong><small>Inspect assumptions</small></li>
-        <li className={decision === "accepted" || decision === "modified" ? "active" : ""}><span>03</span><strong>Decide</strong><small>Accept, modify, reject</small></li>
-        <li className={run ? "active" : ""}><span>04</span><strong>Run</strong><small>Generate and calculate</small></li>
-        <li className={run ? "active" : ""}><span>05</span><strong>Interpret</strong><small>Respect claim limits</small></li>
-      </ol>
+    {explored && <div id="dataset-profile"><DatasetExplorer exploration={explored.summary} /></div>}
 
-      <section className="case-question">
-        <aside><span>01</span><strong>Researcher asks</strong><small>The scientific target—not a software instruction</small></aside>
-        <blockquote>“{researchQuestion}”</blockquote>
-      </section>
+    {explored && <section className="question-contract"><aside><span>02</span><strong>Research question</strong><small>The estimand controls method choice</small></aside><div><blockquote>“{researchQuestion}”</blockquote><p><strong>Primary target:</strong> conditional response association. <strong>Sensitivity target:</strong> whether feature direction and ranking persist under different distributional assumptions.</p></div></section>}
 
-      <section className="case-proposal">
-        <header>
-          <div><span>02 · ANALYSIS PROPOSAL</span><h2>Separate the biological hypothesis from what this dataset can estimate.</h2></div>
-          <span className="proposal-origin">AI_CHOICE · PROPOSAL ONLY</span>
-        </header>
-        <div className="proposal-grid">
-          <article>
-            <span>Target estimand</span>
-            <h3>Adjusted response association</h3>
-            <p>The mean difference in a predeclared T-cell-inflamed expression score between synthetic responders and non-responders, conditional on tumor purity and batch.</p>
-          </article>
-          <article>
-            <span>Primary browser model</span>
-            <h3>Score-level linear model</h3>
-            <code>score ~ response + age + sex + stage + biopsy_site + prior_therapy + tumor_purity + batch</code>
-            <p>Reports an adjusted effect, standard error, 95% interval, test statistic, and p-value.</p>
-          </article>
-          <article>
-            <span>Feature screen</span>
-            <h3>1,200 adjusted models + BH FDR</h3>
-            <code>log2_CPM ~ response + age + sex + stage + biopsy_site + prior_therapy + tumor_purity + batch</code>
-            <p>Generic feature IDs avoid implying real gene-level evidence. Multiplicity is controlled across all features.</p>
-          </article>
-          <article>
-            <span>Sensitivity</span>
-            <h3>Higher-purity subset</h3>
-            <code>tumor_purity ≥ {purityThreshold.toFixed(2)}</code>
-            <p>Checks whether the primary direction persists after excluding more heavily admixed synthetic tumors.</p>
-          </article>
-        </div>
+    {explored && <section className="method-lab">
+      <header className="lab-section-head"><div><span>02 · CHOOSE METHODS</span><h2>Run the same question more than one way.</h2><p>Select at least two methods. Every selected method receives the identical samples, feature universe, normalization, response labels, and FDR threshold.</p></div><span className="selection-count">{selectedMethods.length} SELECTED</span></header>
+      <div className="method-choice-grid">{browserDgeMethods.map((method) => { const selected = selectedMethods.includes(method.id); return <button key={method.id} className={selected ? "selected" : ""} onClick={() => toggleMethod(method.id)} aria-pressed={selected}><span className="method-check">{selected ? "✓" : "+"}</span><span className="method-role">{method.role}</span><h3>{method.name}</h3><p>{method.answers}</p><dl><div><dt>Covariate adjustment</dt><dd>{method.adjusts_covariates ? "YES" : "NO"}</dd></div><div><dt>Browser executable</dt><dd>YES</dd></div></dl><small>{method.limitation}</small></button>; })}</div>
+      <div className="production-methods"><div><span>CONTROLLED PRODUCTION METHODS</span><h3>Count-native adapters remain separate.</h3><p>edgeR quasi-likelihood and DESeq2 Wald can run only through the controlled R service. The public page will never imitate them with JavaScript or expose a private API key.</p></div><div><span>edgeR QL</span><span>DESeq2 Wald</span><button onClick={onOpenRunner}>Open controlled runner →</button></div></div>
+      <div className="analysis-specification"><header><span>LOCKED COMPARISON CONTRACT</span><h3>What stays identical across methods</h3></header><div><p><b>Dataset</b>SYN-MEL-20260825</p><p><b>Samples</b>180 baseline tumors</p><p><b>Universe</b>1,200 features</p><p><b>Normalization</b>log2 CPM</p><p><b>Multiplicity</b>BH across 1,200</p><label><b>Purity sensitivity</b><select value={purityThreshold} onChange={(event) => { setPurityThreshold(Number(event.target.value)); setDecision("pending"); setOutput(null); }}><option value={0.45}>≥ 0.45</option><option value={0.5}>≥ 0.50</option><option value={0.6}>≥ 0.60</option></select></label></div></div>
+      <div className="method-decision"><label><input type="checkbox" checked={acknowledged} onChange={(event) => { setAcknowledged(event.target.checked); setDecision("pending"); }} /><span><strong>I understand the comparison boundary.</strong>All data are synthetic; browser methods are demonstrations; method agreement is not replication; and the neural model is exploratory prediction.</span></label><div><button className="decision-reject" onClick={() => { setDecision("rejected"); setOutput(null); }}>Reject plan</button><button className="primary-button" onClick={accept}>Accept {selectedMethods.length}-method plan</button></div></div>
+    </section>}
 
-        <div className="covariate-contract">
-          <header><div><span>MULTIVARIABLE DESIGN</span><h3>Every covariate has a declared role and encoding.</h3></div><small>Reference levels are explicit so the response coefficient remains interpretable.</small></header>
-          <div className="table-scroll"><table><thead><tr><th>Variable</th><th>Type / encoding</th><th>Why it enters the model</th><th>Reference or scale</th></tr></thead><tbody>
-            <tr><th>Age</th><td>Continuous</td><td>Possible clinical composition difference</td><td>Centered at 60; per 10 years</td></tr>
-            <tr><th>Recorded sex</th><td>Binary indicator</td><td>Possible cohort composition difference</td><td>Female reference</td></tr>
-            <tr><th>Disease stage</th><td>Binary indicator</td><td>Extent of disease may relate to biology and response</td><td>Stage III reference</td></tr>
-            <tr><th>Biopsy site</th><td>Two indicators</td><td>Tissue context can shift bulk expression</td><td>Skin reference; lymph node / visceral</td></tr>
-            <tr><th>Prior systemic therapy</th><td>Binary indicator</td><td>Previous treatment can alter cohort composition</td><td>No reference</td></tr>
-            <tr><th>Tumor purity</th><td>Continuous</td><td>Bulk expression mixes tumor and non-tumor signal</td><td>Observed synthetic fraction</td></tr>
-            <tr><th>Sequencing batch</th><td>Two indicators</td><td>Controls designed technical shifts</td><td>Batch 1 reference</td></tr>
-          </tbody></table></div>
-          <p>These covariates improve the stated conditional comparison; they do not guarantee that all confounding has been removed. Interactions, nonlinear terms, missingness, and repeated measures would require separate design decisions.</p>
-        </div>
+    {explored && <section className="multi-run-stage"><div><span>03 · EXECUTE</span><h2>One dataset. {selectedMethods.length} DGE methods. One neural integration model.</h2><p>Inferential results stay sealed until the researcher accepts the comparison contract.</p></div><button disabled={decision !== "accepted" || running || selectedMethods.length < 2} onClick={execute}>{running ? "Running all analyses…" : output ? "Run accepted plan again" : "Run and compare methods"}<span>▶</span></button>{!output && !running && <footer><span>◇</span><p><strong>Results sealed</strong>Select at least two methods, confirm the boundary, and accept the plan.</p></footer>}{running && <footer className="running"><span /><p><strong>Executing shared analysis contract</strong>DGE models → BH correction → pairwise concordance → 5-fold neural integration</p></footer>}</section>}
 
-        <div className="assumption-ledger">
-          <header><strong>Assumptions requiring researcher review</strong><small>These are visible reasoning steps, not hidden chain-of-thought.</small></header>
-          <div><span>A1</span><p><strong>Timing is aligned.</strong> Expression and response labels represent a baseline-before-treatment design.</p><b>REQUIRED</b></div>
-          <div><span>A2</span><p><strong>The declared clinical and technical covariates are measured adequately.</strong> Important omitted confounders, miscoding, or nonlinearity would still bias an association.</p><b>REQUIRED</b></div>
-          <div><span>A3</span><p><strong>The program was specified before outcome testing.</strong> It is not selected because these synthetic results looked favorable.</p><b>REQUIRED</b></div>
-          <div><span>A4</span><p><strong>Samples are independent.</strong> No repeated tumors or patient-level clustering is represented.</p><b>REQUIRED</b></div>
-        </div>
+    {output && <section className="comparison-results">
+      <header className="results-title"><div><span>04 · MULTI-METHOD RESULTS</span><h2>Agreement is visible. Disagreement stays visible too.</h2><p>Each method is summarized separately before BioTrust recommends which one answers the declared question.</p></div><span className="complete-stamp">{output.comparison.runs.length} METHODS COMPLETE</span></header>
+      <div className="method-result-cards">{output.comparison.runs.map((run) => <article key={run.method.id} className={run.method.id === output.comparison.recommendation.method_id ? "recommended" : ""}><header><span>{run.method.short_name}</span>{run.method.id === output.comparison.recommendation.method_id && <b>PRIMARY</b>}</header><strong>{run.significant_count}</strong><p>features at BH FDR &lt; 0.05</p><dl><div><dt>Higher in responders</dt><dd>{run.positive_count}</dd></div><div><dt>Lower in responders</dt><dd>{run.negative_count}</dd></div><div><dt>Covariate adjusted</dt><dd>{run.method.adjusts_covariates ? "Yes" : "No"}</dd></div></dl></article>)}</div>
+      <section className="agreement-panel"><div className="lab-section-head"><div><span>PAIRWISE AGREEMENT</span><h3>How similarly did the methods rank and classify features?</h3></div><p>High agreement increases robustness to modeling choices. It does not make the result true in another cohort.</p></div><div className="table-scroll"><table><thead><tr><th>Method pair</th><th>Effect-rank correlation</th><th>Sign agreement</th><th>Top-50 overlap</th><th>FDR overlap</th></tr></thead><tbody>{output.comparison.pairwise.map((pair) => <tr key={`${pair.method_a}-${pair.method_b}`}><th>{browserDgeMethods.find((m) => m.id === pair.method_a)?.short_name} ↔ {browserDgeMethods.find((m) => m.id === pair.method_b)?.short_name}</th><td><span className="agreement-meter"><i style={{ width: `${100 * Math.abs(pair.effect_spearman)}%` }} /></span><b>{format(pair.effect_spearman)}</b></td><td>{format(100 * pair.sign_concordance, 1)}%</td><td>{pair.top_50_overlap} / 50</td><td>{pair.fdr_overlap}</td></tr>)}</tbody></table></div></section>
+      <section className="method-recommendation"><div><span>BIOTRUST METHOD RECOMMENDATION</span><h3>{output.comparison.recommendation.title}</h3><ul>{output.comparison.recommendation.rationale.map((reason) => <li key={reason}>{reason}</li>)}</ul></div><aside><span>WHY NOT A MAJORITY VOTE?</span><p>{output.comparison.recommendation.caution}</p><dl><div><dt>Consensus features</dt><dd>{output.comparison.consensus_features.length}</dd></div><div><dt>Primary method</dt><dd>{browserDgeMethods.find((method) => method.id === output.comparison.recommendation.method_id)?.short_name}</dd></div></dl></aside></section>
+      <section className="method-detail-results"><header><div><span>FEATURE TABLE</span><h3>Inspect one method at a time.</h3></div><div>{output.comparison.runs.map((run) => <button className={activeMethod === run.method.id ? "active" : ""} key={run.method.id} onClick={() => setActiveMethod(run.method.id)}>{run.method.short_name}</button>)}</div></header>{activeRun && <MethodResultTable run={activeRun} />}</section>
+      <section className="neural-engine-results"><header><div><span>05 · ACTUAL NEURAL INTEGRATION</span><h2>A small model connects programs and covariates for prediction.</h2><p>This is a real one-hidden-layer neural network trained entirely in the browser with deterministic five-fold cross-validation. It does not replace DGE.</p></div><span className="neural-active">NEURAL ENGINE · ACTIVE</span></header><div className="neural-metrics"><article><span>Cross-validated AUROC</span><strong>{format(output.neural.auc, 3)}</strong><small>ranking performance</small></article><article><span>Balanced accuracy</span><strong>{format(100 * output.neural.balanced_accuracy, 1)}%</strong><small>threshold 0.50</small></article><article><span>Brier score</span><strong>{format(output.neural.brier_score, 3)}</strong><small>probability error</small></article><article><span>Architecture</span><strong>13 → 8 → 1</strong><small>tanh hidden layer</small></article></div><div className="neural-grid"><section><div className="lab-section-head"><div><span>MODEL SENSITIVITY</span><h3>Normalized weight-path importance</h3></div></div>{output.neural.importance.slice(0, 8).map((item) => <div className="importance-row" key={item.feature}><span>{item.feature}</span><i><em style={{ width: `${100 * item.importance / output.neural.importance[0].importance}%` }} /></i><b>{format(100 * item.importance, 1)}%</b></div>)}</section><aside><span>INTERPRETATION BOUNDARY</span>{output.neural.warnings.map((warning) => <p key={warning}>! <span>{warning}</span></p>)}</aside></div></section>
+      {interpretation && <section className="connection-engine"><header><span>CONNECT THE DOTS · TRACEABLE SYNTHESIS</span><h2>What the combined evidence means—and what it cannot mean.</h2><p>{interpretation.summary}</p></header><div>{interpretation.connections.map((connection) => <article className={connection.kind} key={connection.id}><b>{connection.id}</b><div><span>{connection.kind.replace("-", " ")}</span><h3>{connection.title}</h3><p>{connection.finding}</p><strong>{connection.implication}</strong><small>Evidence: {connection.evidence_refs.join(" · ")}</small></div></article>)}</div></section>}
+      <section className="case-downloads"><div><span>COMPLETE EVIDENCE PACKAGE</span><h3>Download data, every method, audit, and report.</h3><p>Method-specific rows remain labeled in the combined results CSV.</p></div><div><button onClick={() => downloadText("synthetic-melanoma-metadata.csv", melanomaMetadataCsv(output.dataset), "text/csv")}>Metadata CSV ↓</button><button onClick={() => downloadText("synthetic-melanoma-counts.csv", melanomaCountsCsv(output.dataset), "text/csv")}>Counts CSV ↓</button><button onClick={() => downloadText("synthetic-melanoma-multimethod-results.csv", dgeComparisonCsv(output.comparison), "text/csv")}>All methods CSV ↓</button><button onClick={() => audit && downloadText("synthetic-melanoma-comparison-audit.json", JSON.stringify(audit, null, 2), "application/json")}>Audit JSON ↓</button><button className="pdf-download" onClick={downloadPdf}>Comparison PDF ↓</button></div></section>
+    </section>}
 
-        <div className="method-boundary">
-          <div>
-            <span>WHAT RUNS ONLINE</span>
-            <strong>Deterministic JavaScript demonstration</strong>
-            <p>Procedural count generation, log2 CPM, program scoring, ordinary least squares, normal-approximation tests, and Benjamini-Hochberg adjustment.</p>
-          </div>
-          <div>
-            <span>WHAT A CONTROLLED PRODUCTION RUNNER SHOULD USE</span>
-            <strong>edgeR quasi-likelihood + CAMERA</strong>
-            <p>Count-aware feature modeling and a competitive gene-set test that accounts for inter-feature correlation. This page does not claim to execute either R package.</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="decision-panel">
-        <div>
-          <span>03 · RESEARCHER DECISION</span>
-          <h2>No proposal changes the plan silently.</h2>
-          <label className="synthetic-ack"><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} /><span><strong>I understand that every sample and result is synthetic.</strong>This is research-software education, not medical evidence or clinical advice.</span></label>
-        </div>
-        <div className="decision-actions">
-          <button className="decision-reject" onClick={reject}>Reject</button>
-          <button className="secondary-button" onClick={() => setShowModification((current) => !current)}>Modify sensitivity</button>
-          <button className="primary-button" onClick={() => accept(false)}>Accept proposal</button>
-        </div>
-        {showModification && <div className="modify-box">
-          <label>Minimum tumor purity for sensitivity analysis<select value={purityThreshold} onChange={(event) => setPurityThreshold(Number(event.target.value))}><option value={0.45}>0.45 · broader subset</option><option value={0.5}>0.50 · proposed</option><option value={0.6}>0.60 · stricter subset</option></select></label>
-          <p>The primary model remains unchanged. Only the prespecified sensitivity subset changes.</p>
-          <button className="primary-button" onClick={() => accept(true)}>Accept modification</button>
-        </div>}
-        {decision === "rejected" && <p className="rejected-note">The proposal is rejected. Nothing will run unless you review and accept a proposal.</p>}
-      </section>
-
-      <section className="run-stage">
-        <header><div><span>04 · CONTROLLED BROWSER RUN</span><h2>Generate the cohort only after approval.</h2><p>The same seed and accepted settings reproduce the same data and output.</p></div><button className="run-case-button" disabled={running || (decision !== "accepted" && decision !== "modified")} onClick={execute}>{running ? "Generating + calculating…" : run ? "Run again" : "Generate data + run analysis"}<span>▶</span></button></header>
-        {!run && !running && <div className="sealed-result"><span>◇</span><strong>Results are sealed</strong><p>Accept the proposal, then run the synthetic analysis. No outcome is displayed in advance.</p></div>}
-        {running && <div className="analysis-running" role="status"><span /><div><strong>Executing deterministic protocol</strong><p>Generating 180 samples · calculating 1,200 feature models · applying BH FDR</p></div></div>}
-      </section>
-
-      {run && <section className="case-results">
-        <header className="results-title"><div><span>05 · EXECUTED OUTPUT</span><h2>Association detected in this synthetic fixture.</h2><p>Executed output is authoritative for this demonstration; the proposal itself was not evidence.</p></div><span className="complete-stamp">RUN COMPLETE</span></header>
-
-        <div className="result-summary-grid">
-          <article><span>Adjusted score difference</span><strong>{formatNumber(run.result.primary.response_effect)}</strong><small>standardized score units</small></article>
-          <article><span>95% interval</span><strong>{formatNumber(run.result.primary.confidence_low)}–{formatNumber(run.result.primary.confidence_high)}</strong><small>normal approximation</small></article>
-          <article><span>Primary p-value</span><strong>{formatP(run.result.primary.p_value)}</strong><small>association test</small></article>
-          <article><span>FDR &lt; 0.05</span><strong>{run.result.fdr_significant_features}</strong><small>of {run.result.dataset.feature_count} features</small></article>
-        </div>
-
-        <div className="model-comparison">
-          <div className="case-section-head"><div><span>MODEL COMPARISON</span><h3>Does the conclusion survive adjustment and filtering?</h3></div><p>The naive estimate is shown to reveal the consequence of ignoring purity and batch; it is not the primary answer.</p></div>
-          <div className="table-scroll"><table><thead><tr><th>Model</th><th>n</th><th>Response effect</th><th>95% interval</th><th>p-value</th></tr></thead><tbody><ModelRow model={run.result.naive} /><ModelRow model={run.result.primary} /><ModelRow model={run.result.sensitivity} /></tbody></table></div>
-        </div>
-
-        <div className="result-columns">
-          <section className="program-results">
-            <div className="case-section-head"><div><span>PROGRAM-LEVEL PATTERN</span><h3>Average adjusted feature effects</h3></div></div>
-            {run.result.program_summaries.map((program) => <div className="program-row" key={program.program}><div><strong>{program.program}</strong><small>{program.feature_count} features · {program.fdr_significant_features} FDR-significant</small></div><div className="effect-track"><span className={program.mean_response_effect < 0 ? "negative" : ""} style={{ width: `${Math.min(100, Math.abs(program.mean_response_effect) * 120)}%` }} /></div><b>{program.mean_response_effect > 0 ? "+" : ""}{formatNumber(program.mean_response_effect)}</b></div>)}
-            <p className="chart-note">Positive values indicate higher expression in synthetic responders after adjustment. These are program summaries, not estimates of cell abundance.</p>
-          </section>
-          <section className="run-provenance">
-            <div className="case-section-head"><div><span>REPRODUCIBILITY</span><h3>Fixed execution record</h3></div></div>
-            <dl><div><dt>Execution</dt><dd>{run.result.execution_id}</dd></div><div><dt>Seed</dt><dd>{run.result.seed}</dd></div><div><dt>Metadata checksum</dt><dd>{run.result.hashes.metadata}</dd></div><div><dt>Counts checksum</dt><dd>{run.result.hashes.counts}</dd></div><div><dt>Results checksum</dt><dd>{run.result.hashes.results}</dd></div><div><dt>Checksum type</dt><dd>{run.result.hashes.algorithm}</dd></div></dl>
-          </section>
-        </div>
-
-        <section className="top-features">
-          <div className="case-section-head"><div><span>FEATURE-LEVEL SCREEN</span><h3>Top adjusted results</h3></div><p>Generic identifiers prevent this demonstration from being mistaken for real gene evidence.</p></div>
-          <div className="table-scroll"><table><thead><tr><th>Feature</th><th>Program</th><th>Adjusted effect</th><th>Statistic</th><th>p-value</th><th>BH FDR</th></tr></thead><tbody>{run.result.feature_results.slice(0, 10).map((row) => <tr key={row.feature_id}><th>{row.feature_id}</th><td>{row.program}</td><td>{row.response_effect > 0 ? "+" : ""}{formatNumber(row.response_effect, 3)}</td><td>{formatNumber(row.statistic)}</td><td>{formatP(row.p_value)}</td><td>{formatP(row.adjusted_p_value)}</td></tr>)}</tbody></table></div>
-        </section>
-
-        <section className="interpretation-boundary">
-          <div className="allowed-claim"><span>SUPPORTED WORDING</span><p>“In this synthetic melanoma fixture, the predeclared T-cell-inflamed expression score was higher in synthetic responders after adjustment for age, recorded sex, stage, biopsy site, prior therapy, tumor purity, and batch; the direction persisted in the higher-purity sensitivity subset.”</p></div>
-          <div className="blocked-claims"><span>NOT ESTABLISHED</span><ul><li>The program caused response.</li><li>A real patient would benefit from treatment.</li><li>The score is a validated clinical biomarker.</li><li>The expression score measures T-cell abundance.</li></ul></div>
-        </section>
-
-        <section className="synthesis-engine">
-          <header>
-            <div><span>INTERPRETATION ASSISTANCE</span><h3>Evidence synthesis engine</h3><p>Connects executed outputs into a traceable interpretation map. It cannot create new evidence or raise the claim ceiling.</p></div>
-            <div className="engine-status"><span>LOCAL RULE ENGINE · ACTIVE</span><b>NEURAL ADAPTER · NOT CONNECTED</b></div>
-          </header>
-          {!showSynthesis && <div className="engine-gate"><div><strong>What the engine will connect</strong><p>Primary model → covariate impact → purity sensitivity → TME program coherence → contradictions → next decisive analyses.</p></div><button className="primary-button" onClick={() => setShowSynthesis(true)}>Connect the dots <span>→</span></button></div>}
-          {showSynthesis && synthesis && <div className="synthesis-output">
-            <div className="synthesis-summary"><span>RULE-BASED SYNTHESIS</span><p>{synthesis.summary}</p></div>
-            <div className="connection-map">{synthesis.connections.map((connection, index) => <article className={connection.kind} key={connection.id}><div className="connection-index"><span>{connection.id}</span>{index < synthesis.connections.length - 1 && <i />}</div><div><b>{connection.kind.replace("-", " ")}</b><h4>{connection.title}</h4><p>{connection.finding}</p><strong>{connection.implication}</strong><small>Evidence: {connection.evidence_refs.join(" · ")}</small></div></article>)}</div>
-            <div className="neural-adapter-note"><span>OPTIONAL CONTROLLED NEURAL ADAPTER</span><p>A future model may explain this structured map in conversational language. It should receive only sanitized summaries, cite these evidence IDs, preserve contradictions, and require researcher approval before any interpretation is saved.</p></div>
-          </div>}
-        </section>
-
-        <section className="case-downloads">
-          <div><span>DOWNLOAD THE COMPLETE EVIDENCE PACKAGE</span><h3>Inspect data, output, decisions, and report.</h3><p>The PDF is a formatted summary. CSV and JSON files remain the machine-readable record.</p></div>
-          <div><button onClick={() => downloadText("synthetic-melanoma-metadata.csv", melanomaMetadataCsv(run.dataset), "text/csv")}>Metadata CSV <span>↓</span></button><button onClick={() => downloadText("synthetic-melanoma-counts.csv", melanomaCountsCsv(run.dataset), "text/csv")}>Counts CSV <span>↓</span></button><button onClick={() => downloadText("synthetic-melanoma-results.csv", melanomaResultsCsv(run.result), "text/csv")}>Results CSV <span>↓</span></button><button onClick={() => audit && downloadText("synthetic-melanoma-audit.json", JSON.stringify(audit, null, 2), "application/json")}>Audit JSON <span>↓</span></button><button className="pdf-download" onClick={downloadPdf}>Scientific PDF <span>↓</span></button></div>
-        </section>
-      </section>}
-
-      <section className="case-sources">
-        <div><span>SCIENTIFIC BASIS</span><h2>Why this question and these controls?</h2><p>The literature motivates the demonstration design; it does not validate the generated result.</p></div>
-        <div>
-          <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5531419/" target="_blank" rel="noreferrer"><strong>Ayers et al., JCI 2017</strong><span>T-cell-inflamed expression and PD-1 response rationale ↗</span></a>
-          <a href="https://www.nature.com/articles/ncomms9971" target="_blank" rel="noreferrer"><strong>Aran et al., Nature Communications 2015</strong><span>Why tumor purity can affect transcriptomic comparisons ↗</span></a>
-          <a href="https://bioconductor.org/packages/release/bioc/vignettes/edgeR/inst/doc/edgeRUsersGuide.pdf" target="_blank" rel="noreferrer"><strong>edgeR User&apos;s Guide</strong><span>Production count-model recommendation ↗</span></a>
-          <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3458527/" target="_blank" rel="noreferrer"><strong>Wu &amp; Smyth, Nucleic Acids Research 2012</strong><span>Competitive gene-set testing with correlation adjustment ↗</span></a>
-        </div>
-      </section>
-    </div>
-  );
+    <section className="case-sources"><div><span>SCIENTIFIC BASIS</span><h2>Methods are chosen from the question and data structure.</h2><p>The literature motivates this synthetic design; it does not validate its generated outcome.</p></div><div><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5531419/" target="_blank" rel="noreferrer"><strong>Ayers et al., JCI 2017</strong><span>T-cell-inflamed expression rationale ↗</span></a><a href="https://www.nature.com/articles/ncomms9971" target="_blank" rel="noreferrer"><strong>Aran et al., Nature Communications 2015</strong><span>Tumor-purity implications ↗</span></a><a href="https://bioconductor.org/packages/release/bioc/vignettes/edgeR/inst/doc/edgeRUsersGuide.pdf" target="_blank" rel="noreferrer"><strong>edgeR User&apos;s Guide</strong><span>Count-native production analysis ↗</span></a><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC3458527/" target="_blank" rel="noreferrer"><strong>Wu &amp; Smyth, NAR 2012</strong><span>Correlation-aware gene-set testing ↗</span></a></div></section>
+  </div>;
 }
