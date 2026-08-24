@@ -30,6 +30,7 @@ jobs:
       - name: Build static demonstration
         env:
           PAGES_BASE: /BioTrust-AI/
+          NEXT_PUBLIC_API_URL: ${{ vars.BIOTRUST_API_URL }}
         run: npm run build:pages
       - name: Configure Pages
         uses: actions/configure-pages@v5

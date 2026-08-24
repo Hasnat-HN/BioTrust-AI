@@ -10,9 +10,9 @@ BioTrust AI is an attempt to make that process more transparent. The idea is to 
 
 The aim is simple: AI should help researchers reason through an analysis, not become a black box they are expected to trust.
 
-**Live web demonstration:** [Open BioTrust AI](https://hasnat-hn.github.io/BioTrust-AI/)
+**Live web application:** [Open BioTrust AI](https://hasnat-hn.github.io/BioTrust-AI/)
 
-The live demonstration is safe for public exploration and does not accept private datasets. Run the project locally to execute real count matrices within the controlled Docker boundary.
+The public application runs the complete synthetic workflow in the browser and produces downloadable PDF, CSV, and JSON records. Private dataset uploads remain disabled unless a separately secured computation service is connected. Run the project locally to execute real count matrices within the controlled Docker boundary.
 
 ## What is implemented
 
@@ -29,6 +29,8 @@ The live demonstration is safe for public exploration and does not accept privat
 - FastAPI foundation for projects, datasets, analysis plans, claims, context previews, and evidence assessment
 - Controlled edgeR quasi-likelihood and DESeq2 Wald execution adapters for real RNA-seq count matrices
 - Strict CSV validation, method allowlisting, temporary input handling, SHA-256 audit hashes, software versions, and downloadable results
+- Nine-step guided analysis flow explaining what the researcher does, what BioTrust checks, why each step matters, and what still needs review
+- Downloadable scientific PDF report with the question, method rationale, decision trail, result preview, limitations, software versions, and hashes
 - Deterministic privacy, claim-warning, and evidence rules with tests
 
 ## Run locally with Docker
@@ -69,4 +71,8 @@ npm test
 .venv/bin/pytest backend/tests
 ```
 
-The hosted demonstration is intentionally frontend-contained and does not receive raw research data. Real count-matrix execution is local-only through the controlled edgeR and DESeq2 adapters. No real AI provider is connected; custom Method Cards document methods but do not make arbitrary code executable.
+The hosted application is frontend-contained unless the repository variable `BIOTRUST_API_URL` points to an authenticated controlled runner whose CORS policy explicitly permits the GitHub Pages origin. Do not configure a public unauthenticated endpoint for private research data. No real AI provider is connected; custom Method Cards document methods but do not make arbitrary code executable.
+
+## Ownership and permitted use
+
+Copyright © 2026 Hasnat Noor. All rights reserved. This repository is publicly viewable for evaluation and demonstration, but it is not open-source software. Copying, modification, redistribution, publication, sublicensing, resale, commercial exploitation, derivative works, and competing use are not permitted without prior written permission. See [LICENSE](LICENSE) for the full proprietary notice.

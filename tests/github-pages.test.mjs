@@ -7,6 +7,7 @@ const workflow = await readFile(new URL("../.github/workflows/pages.yml", import
 
 test("builds the public demonstration for the repository Pages path", async () => {
   assert.match(html, /BioTrust AI — Auditable Bioinformatics/);
+  assert.match(html, /<html lang="en" data-theme="dark">/);
   assert.match(html, /\/BioTrust-AI\/assets\//);
   assert.doesNotMatch(html, /chatgpt\.site/);
   assert.ok((await stat(new URL("../pages-dist/og.png", import.meta.url))).size > 0);

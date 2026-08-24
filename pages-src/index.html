@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,7 +14,7 @@
         const saved = localStorage.getItem("biotrust.theme.v1");
         document.documentElement.dataset.theme = saved === "dark" || saved === "light"
           ? saved
-          : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          : "dark";
       } catch {}
     </script>
   </head>

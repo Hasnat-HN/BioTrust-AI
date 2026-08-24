@@ -30,13 +30,16 @@ test("custom method cards are local and always require review", () => {
   assert.match(appSource, /Researcher-added cards stay local and are visibly marked for review/);
 });
 
-test("controlled execution is exposed locally without widening arbitrary code access", () => {
+test("controlled execution stays gated while supporting a configured runner", () => {
   assert.match(appSource, /Run a controlled analysis/);
   assert.match(appSource, /api\/executions\/run/);
   assert.match(appSource, /edgeR quasi-likelihood/);
   assert.match(appSource, /DESeq2 Wald test/);
   assert.match(appSource, /no arbitrary formulas/i);
-  assert.match(appSource, /Private dataset execution is deliberately unavailable on the public website/);
+  assert.match(appSource, /secure real-data runner is not connected yet/i);
+  assert.match(appSource, /runtime\.state !== "ready"/);
+  assert.match(appSource, /Scientific PDF/);
+  assert.match(appSource, /I confirm this exact plan/);
 });
 
 test("sidebar identifies the workspace without inventing a researcher identity", () => {
@@ -54,9 +57,12 @@ test("the public demonstration begins empty and reveals results only after an ex
   assert.match(appSource, /syntheticResult \? <ProvenanceView/);
 });
 
-test("includes the evidence-trail logo and a persistent dark mode option", () => {
+test("defaults to black and keeps the appearance control in the bottom-left sidebar", () => {
   assert.match(appSource, /trail-node third/);
   assert.doesNotMatch(appSource, /className="brand-mark">B</);
+  assert.match(appSource, /useState<Theme>\("dark"\)/);
   assert.match(appSource, /biotrust\.theme\.v1/);
+  assert.match(appSource, /className="sidebar-theme-toggle"/);
+  assert.match(appSource, /Change site appearance/);
   assert.match(appSource, /Switch to \$\{theme === "light" \? "dark" : "light"\} mode/);
 });

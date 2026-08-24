@@ -96,12 +96,16 @@ def available_methods() -> list[dict[str, str]]:
 
 def runtime_status() -> dict[str, Any]:
     rscript = os.getenv("BIOTRUST_RSCRIPT", "Rscript")
+    deployment_mode = os.getenv("BIOTRUST_EXECUTION_MODE", "local").strip().lower()
     return {
         "status": "ready" if shutil.which(rscript) else "unavailable",
         "rscript": rscript,
         "runner": str(RUNNER_PATH),
         "methods": list(METHODS),
-        "local_only": True,
+        "deployment_mode": deployment_mode,
+        "local_only": deployment_mode != "online",
+        "temporary_storage": True,
+        "raw_data_ai_access": False,
     }
 
 

@@ -8,7 +8,7 @@ export default defineConfig({
   publicDir: resolve(process.cwd(), "public"),
   plugins: [react()],
   define: {
-    "process.env.NEXT_PUBLIC_API_URL": "undefined",
+    "process.env.NEXT_PUBLIC_API_URL": JSON.stringify(process.env.NEXT_PUBLIC_API_URL ?? ""),
   },
   build: {
     outDir: resolve(process.cwd(), "pages-dist"),

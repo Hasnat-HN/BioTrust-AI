@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,7 +17,20 @@ app = FastAPI(
     version="0.1.0",
     description="Structured scientific provenance and privacy boundary for the BioTrust AI MVP.",
 )
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["*"], allow_headers=["*"])
+allowed_origins = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv(
+        "BIOTRUST_ALLOWED_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000",
+    ).split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Accept", "Authorization", "Content-Type"],
+)
 seed_synthetic_demo()
 
 

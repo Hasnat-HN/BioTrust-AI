@@ -10,26 +10,11 @@ import {
   type Claim,
   type MethodCard,
 } from "./data";
+import { buildDecisionTrail, type ReportExecutionResult } from "./decisionTrail";
 
 type View = "overview" | "projects" | "analysis" | "execution" | "trust" | "claims" | "methods" | "provenance";
 
-type ExecutionResult = {
-  execution_id: string;
-  status: string;
-  method: string;
-  comparison: string;
-  reference: string;
-  design: string;
-  sample_count: number;
-  feature_count: number;
-  retained_feature_count: number;
-  input_hashes: Record<string, string>;
-  output_hash: string;
-  software_versions: Record<string, string>;
-  warnings: string[];
-  generated_at: string;
-  results: Array<{ feature_id: string; log2_fold_change: number | null; statistic: number | null; p_value: number | null; adjusted_p_value: number | null }>;
-};
+type ExecutionResult = ReportExecutionResult;
 
 type Theme = "light" | "dark";
 
@@ -134,7 +119,7 @@ function AddMethodCardModal({ onClose, onSave }: { onClose: () => void; onSave: 
   return <Modal title="Add a Method Card" onClose={onClose} wide><form className="method-form" onSubmit={submit}><div className="method-form-note"><span>i</span><p><strong>Documentation, not execution</strong>Adding a Method Card makes a method available for planning and review. It never enables arbitrary code execution.</p></div><div className="method-form-grid"><label>Method name *<input required value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="e.g. My validated workflow" /></label><label>Package or framework *<input required value={form.package} onChange={(event) => update("package", event.target.value)} placeholder="e.g. packageName" /></label><label>Function or entry point *<input required value={form.fn} onChange={(event) => update("fn", event.target.value)} placeholder="e.g. fitModel" /></label><label>Category<select value={form.category} onChange={(event) => update("category", event.target.value)}><option>Differential expression</option><option>Gene-set testing</option><option>Association</option><option>Validation</option><option>Batch adjustment</option><option>Unwanted variation</option><option>Repeated measures</option><option>Exploratory analysis</option><option>Other</option></select></label></div><label>What scientific question does it answer? *<textarea required value={form.question} onChange={(event) => update("question", event.target.value)} placeholder="State the estimand or hypothesis precisely." /></label><div className="method-form-grid lists">{listField("What it does not answer", "notAnswered", "One item per line")}{listField("Appropriate when", "appropriate", "One condition per line")}{listField("Assumptions", "assumptions", "One assumption per line")}{listField("Common failure modes", "failureModes", "One failure mode per line")}{listField("Alternatives", "alternatives", "One alternative per line")}{listField("Recommended validation", "validation", "One check per line")}</div><label>Official documentation URL<input type="url" value={form.officialDocumentation} onChange={(event) => update("officialDocumentation", event.target.value)} placeholder="https://…" /></label><footer><span>Custom cards are stored on this device and marked REVIEW REQUIRED.</span><div><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button type="submit" className="primary-button">Add Method Card <span>＋</span></button></div></footer></form></Modal>;
 }
 
-function Sidebar({ active, hasResults, onNavigate, onPrivacy }: { active: View; hasResults: boolean; onNavigate: (view: View) => void; onPrivacy: () => void }) {
+function Sidebar({ active, hasResults, theme, onNavigate, onPrivacy, onToggleTheme }: { active: View; hasResults: boolean; theme: Theme; onNavigate: (view: View) => void; onPrivacy: () => void; onToggleTheme: () => void }) {
   return (
     <aside className="sidebar">
       <button className="brand" onClick={() => onNavigate("overview")} aria-label="BioTrust AI home">
@@ -157,16 +142,17 @@ function Sidebar({ active, hasResults, onNavigate, onPrivacy }: { active: View; 
         <span className="privacy-action">Inspect privacy boundary <span>→</span></span>
       </button>
       <div className="user-row"><span className="avatar">BW</span><div><strong>BioTrust Workspace</strong><small>Local research environment</small></div><span>•••</span></div>
+      <button className="sidebar-theme-toggle" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`} title={`Switch to ${theme === "light" ? "dark" : "light"} mode`} onClick={onToggleTheme}><span>{theme === "light" ? "☾" : "☀"}</span><div><strong>{theme === "light" ? "Black mode" : "Light mode"}</strong><small>Change site appearance</small></div></button>
     </aside>
   );
 }
 
-function Topbar({ view, theme, canExport, onToggleTheme, onExport, onMenu }: { view: View; theme: Theme; canExport: boolean; onToggleTheme: () => void; onExport: () => void; onMenu: () => void }) {
+function Topbar({ view, canExport, onExport, onMenu }: { view: View; canExport: boolean; onExport: () => void; onMenu: () => void }) {
   return (
     <header className="topbar">
       <button className="mobile-menu" aria-label="Open navigation" onClick={onMenu}>☰</button>
       <div className="breadcrumbs"><span>Synthetic transcriptomic association study</span><b>/</b><strong>{viewTitle[view]}</strong></div>
-      <div className="top-actions"><button className="icon-btn theme-toggle" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`} title={`Switch to ${theme === "light" ? "dark" : "light"} mode`} onClick={onToggleTheme}>{theme === "light" ? "☾" : "☀"}</button><button className="export-btn" onClick={onExport} disabled={!canExport} title={canExport ? "Export the current audit record" : "Run the synthetic analysis before exporting an audit"}>Export audit <span>↗</span></button></div>
+      <div className="top-actions"><button className="export-btn" onClick={onExport} disabled={!canExport} title={canExport ? "Export the current audit record" : "Run the synthetic analysis before exporting an audit"}>Export audit <span>↗</span></button></div>
     </header>
   );
 }
@@ -270,21 +256,40 @@ function AnalysisView({ onToast }: { onToast: (message: string) => void }) {
 }
 
 function ExecutionView({ onToast, syntheticResult, onSyntheticResult }: { onToast: (message: string) => void; syntheticResult: ExecutionResult | null; onSyntheticResult: (result: ExecutionResult) => void }) {
-  const [localRuntime, setLocalRuntime] = useState(false);
+  const [runtime, setRuntime] = useState<{ state: "checking" | "ready" | "unavailable"; apiBase: string; location: "local" | "online" | "none" }>({ state: "checking", apiBase: "", location: "none" });
   const [countsFile, setCountsFile] = useState<File | null>(null);
   const [metadataFile, setMetadataFile] = useState<File | null>(null);
   const [method, setMethod] = useState("edger_qlf");
+  const [researchQuestion, setResearchQuestion] = useState("Which features differ between treated and control samples after adjustment for the declared covariates?");
   const [conditionColumn, setConditionColumn] = useState("condition");
   const [referenceLevel, setReferenceLevel] = useState("control");
   const [comparisonLevel, setComparisonLevel] = useState("treated");
   const [covariates, setCovariates] = useState("batch");
+  const [planConfirmed, setPlanConfirmed] = useState(false);
   const [running, setRunning] = useState(false);
   const [demoRunning, setDemoRunning] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<ExecutionResult | null>(null);
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- local execution is enabled only after the browser host is known
-    setLocalRuntime(["localhost", "127.0.0.1", "::1"].includes(window.location.hostname));
+    const localBrowser = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+    const configuredApi = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+    const apiBase = configuredApi || (localBrowser ? "http://localhost:8000" : "");
+    if (!apiBase) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- availability is known only after the browser environment is inspected
+      setRuntime({ state: "unavailable", apiBase: "", location: "none" });
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 5000);
+    fetch(`${apiBase}/api/execution/health`, { signal: controller.signal })
+      .then(async (response) => {
+        const body = await response.json() as { status?: string };
+        if (!response.ok || body.status !== "ready") throw new Error("Runner is not ready");
+        setRuntime({ state: "ready", apiBase, location: localBrowser ? "local" : "online" });
+      })
+      .catch(() => setRuntime({ state: "unavailable", apiBase, location: localBrowser ? "local" : "online" }))
+      .finally(() => window.clearTimeout(timer));
+    return () => { window.clearTimeout(timer); controller.abort(); };
   }, []);
   const download = (content: string, filename: string, type: string) => {
     const url = URL.createObjectURL(new Blob([content], { type }));
@@ -294,16 +299,15 @@ function ExecutionView({ onToast, syntheticResult, onSyntheticResult }: { onToas
     anchor.click();
     URL.revokeObjectURL(url);
   };
-  const downloadResults = () => {
-    if (!result) return;
+  const downloadResults = (target: ExecutionResult) => {
     const escape = (value: string | number | null) => `"${String(value ?? "").replaceAll('"', '""')}"`;
-    const rows = result.results.map((row) => [row.feature_id, row.log2_fold_change, row.statistic, row.p_value, row.adjusted_p_value].map(escape).join(","));
-    download(["feature_id,log2_fold_change,statistic,p_value,adjusted_p_value", ...rows].join("\n"), `${result.execution_id}-results.csv`, "text/csv");
+    const rows = target.results.map((row) => [row.feature_id, row.log2_fold_change, row.statistic, row.p_value, row.adjusted_p_value].map(escape).join(","));
+    download(["feature_id,log2_fold_change,statistic,p_value,adjusted_p_value", ...rows].join("\n"), `${target.execution_id}-results.csv`, "text/csv");
     onToast("Result table downloaded");
   };
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!localRuntime || !countsFile || !metadataFile) return;
+    if (runtime.state !== "ready" || !countsFile || !metadataFile || !planConfirmed) return;
     setRunning(true);
     setError("");
     setResult(null);
@@ -316,8 +320,7 @@ function ExecutionView({ onToast, syntheticResult, onSyntheticResult }: { onToas
     form.set("counts_file", countsFile);
     form.set("metadata_file", metadataFile);
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-      const response = await fetch(`${apiBase}/api/executions/run`, { method: "POST", body: form });
+      const response = await fetch(`${runtime.apiBase}/api/executions/run`, { method: "POST", body: form });
       const body = await response.json() as ExecutionResult | { detail?: string };
       if (!response.ok) throw new Error("detail" in body && body.detail ? body.detail : "The controlled analysis could not be completed");
       setResult(body as ExecutionResult);
@@ -340,35 +343,71 @@ function ExecutionView({ onToast, syntheticResult, onSyntheticResult }: { onToas
   };
   const visibleResult = result ?? syntheticResult;
   const resultIsSynthetic = visibleResult?.execution_id.startsWith("SYN-") ?? false;
+  const selectedMethodName = method === "deseq2_wald" ? "DESeq2 Wald test" : "edgeR quasi-likelihood";
+  const selectedCovariates = covariates.split(",").map((item) => item.trim()).filter(Boolean);
+  const downloadPdf = async (target: ExecutionResult) => {
+    const synthetic = target.execution_id.startsWith("SYN-");
+    const { downloadAnalysisReport } = await import("./report");
+    downloadAnalysisReport({
+      result: target,
+      isSynthetic: synthetic,
+      projectName: synthetic ? "Synthetic transcriptomic association study" : "Controlled RNA-seq analysis",
+      datasetName: synthetic ? "Synthetic_Cohort" : countsFile?.name ?? "Researcher dataset",
+      researchQuestion: synthetic ? "Which features differ between Group_B and Group_A under the fixed demonstration design?" : researchQuestion,
+      conditionColumn,
+      covariates: synthetic ? ["Technical_Batch"] : selectedCovariates,
+    });
+    onToast("Scientific PDF report downloaded");
+  };
+  const guidedSteps = [
+    ["01", "Define the question", "State the exact comparison and intended interpretation."],
+    ["02", "Choose the data", "Use a synthetic fixture or upload an authorized count matrix and metadata."],
+    ["03", "Validate inputs", "Check identifiers, count values, sample matching, limits, and replication."],
+    ["04", "Choose the method", "Select only an allowlisted method that matches the data and question."],
+    ["05", "Confirm the plan", "Review the exact formula, contrast, covariates, and multiple-testing rule."],
+    ["06", "Run the analysis", "Execute in the controlled runtime and record software and hashes."],
+    ["07", "Review checks", "Inspect multiplicity, diagnostics, warnings, and sensitivity requirements."],
+    ["08", "Interpret carefully", "Separate data, inference, hypothesis, and unsupported claims."],
+    ["09", "Download the record", "Export PDF, complete CSV, and machine-readable audit JSON."],
+  ];
   return (
     <div className="view execution-view">
-      <div className="page-head"><div><span className="page-kicker">Local computation boundary</span><h1>Run a controlled analysis</h1><p>Execute a validated RNA-seq comparison without allowing arbitrary code or sending raw data to an external service.</p></div><Badge tone={localRuntime ? "green" : "gray"}>{localRuntime ? "LOCAL RUNNER" : "WEB PREVIEW"}</Badge></div>
-      {!localRuntime && <section className="hosted-execution-notice"><span>⌂</span><div><strong>Private dataset execution is deliberately unavailable on the public website.</strong><p>Clone the repository and run <code>docker compose up --build</code>. Then open <code>http://localhost:3000</code>; this form will connect only to your local BioTrust API.</p></div><a href="https://github.com/Hasnat-HN/BioTrust-AI" target="_blank" rel="noreferrer">Open GitHub setup <span>↗</span></a></section>}
+      <div className="page-head"><div><span className="page-kicker">Guided, controlled computation</span><h1>Run a controlled analysis you can explain.</h1><p>Follow one visible path from the research question to a downloadable scientific record. Every decision, check, result, and limitation stays reviewable.</p></div><Badge tone={runtime.state === "ready" ? "green" : runtime.state === "checking" ? "blue" : "gray"}>{runtime.state === "checking" ? "CHECKING RUNNER" : runtime.state === "ready" ? `${runtime.location.toUpperCase()} RUNNER READY` : "DEMO MODE"}</Badge></div>
+      <section className="guided-workflow" aria-label="Guided analysis process">
+        <div className="guided-workflow-head"><div><span className="panel-icon">⌁</span><div><h2>The complete analysis path</h2><p>What you do, what BioTrust checks, and what you receive.</p></div></div><Badge tone="blue">9 CLEAR STEPS</Badge></div>
+        <div className="guided-step-grid">{guidedSteps.map(([number, title, explanation]) => <article key={number}><span>{number}</span><div><strong>{title}</strong><p>{explanation}</p></div></article>)}</div>
+      </section>
+      {runtime.state === "unavailable" && <section className="hosted-execution-notice"><span>⌂</span><div><strong>The public demonstration works online; the secure real-data runner is not connected yet.</strong><p>You can run the synthetic workflow and download its PDF now. Real files stay disabled until an authenticated, isolated computation service is deployed. For local real-data analysis, run <code>docker compose up --build</code>.</p></div><a href="https://github.com/Hasnat-HN/BioTrust-AI" target="_blank" rel="noreferrer">Open setup guide <span>↗</span></a></section>}
+      {runtime.state === "ready" && runtime.location === "online" && <section className="online-execution-notice"><span>✓</span><div><strong>Controlled online runner connected</strong><p>Only upload data you are authorized to process. The runner validates inputs, uses temporary storage, and returns a hashed record.</p></div></section>}
       <section className="synthetic-run-card"><span className="synthetic-run-mark">◇</span><div><Badge tone="blue">SAFE DEMONSTRATION</Badge><h2>Run the synthetic analysis</h2><p>No results are preloaded. This runs a fixed demonstration fixture and reveals its clearly labeled output, claims, and provenance record.</p></div><button className="primary-button" onClick={runSynthetic} disabled={demoRunning}>{demoRunning ? "Running synthetic fixture…" : syntheticResult ? "Run synthetic data again" : "Run on synthetic data"} <span>{demoRunning ? "◌" : "▶"}</span></button></section>
       <div className="execution-layout">
         <form className="panel execution-form" onSubmit={submit}>
-          <div className="section-head"><div><span className="panel-icon">▶</span><div><h2>Analysis inputs</h2><p>Files remain inside the temporary local runner</p></div></div><Badge tone="blue">ALLOWLISTED</Badge></div>
+          <div className="section-head"><div><span className="panel-icon">▶</span><div><h2>Real-data analysis</h2><p>{runtime.location === "online" ? "Files are sent only to the configured controlled runner" : "Files remain inside the temporary local runner"}</p></div></div><Badge tone="blue">ALLOWLISTED</Badge></div>
+          <label className="execution-question">1 · Research question<textarea value={researchQuestion} disabled={runtime.state !== "ready" || running} onChange={(event) => { setResearchQuestion(event.target.value); setPlanConfirmed(false); }} /></label>
           <div className="execution-files">
-            <label><span>Count matrix CSV</span><input type="file" accept=".csv,text/csv" disabled={!localRuntime || running} onChange={(event) => setCountsFile(event.target.files?.[0] ?? null)} /><small>{countsFile?.name ?? "First column: feature_id; remaining columns: samples"}</small></label>
-            <label><span>Sample metadata CSV</span><input type="file" accept=".csv,text/csv" disabled={!localRuntime || running} onChange={(event) => setMetadataFile(event.target.files?.[0] ?? null)} /><small>{metadataFile?.name ?? "Must include sample_id and the selected condition"}</small></label>
+            <label><span>2 · Count matrix CSV</span><input type="file" accept=".csv,text/csv" disabled={runtime.state !== "ready" || running} onChange={(event) => { setCountsFile(event.target.files?.[0] ?? null); setPlanConfirmed(false); }} /><small>{countsFile?.name ?? "First column: feature_id; remaining columns: samples"}</small></label>
+            <label><span>2 · Sample metadata CSV</span><input type="file" accept=".csv,text/csv" disabled={runtime.state !== "ready" || running} onChange={(event) => { setMetadataFile(event.target.files?.[0] ?? null); setPlanConfirmed(false); }} /><small>{metadataFile?.name ?? "Must include sample_id and the selected condition"}</small></label>
           </div>
           <div className="execution-fields">
-            <label>Method<select value={method} disabled={!localRuntime || running} onChange={(event) => setMethod(event.target.value)}><option value="edger_qlf">edgeR quasi-likelihood</option><option value="deseq2_wald">DESeq2 Wald test</option></select></label>
-            <label>Condition column<input value={conditionColumn} disabled={!localRuntime || running} onChange={(event) => setConditionColumn(event.target.value)} /></label>
-            <label>Reference level<input value={referenceLevel} disabled={!localRuntime || running} onChange={(event) => setReferenceLevel(event.target.value)} /></label>
-            <label>Comparison level<input value={comparisonLevel} disabled={!localRuntime || running} onChange={(event) => setComparisonLevel(event.target.value)} /></label>
+            <label>4 · Method<select value={method} disabled={runtime.state !== "ready" || running} onChange={(event) => { setMethod(event.target.value); setPlanConfirmed(false); }}><option value="edger_qlf">edgeR quasi-likelihood</option><option value="deseq2_wald">DESeq2 Wald test</option></select></label>
+            <label>3 · Condition column<input value={conditionColumn} disabled={runtime.state !== "ready" || running} onChange={(event) => { setConditionColumn(event.target.value); setPlanConfirmed(false); }} /></label>
+            <label>5 · Reference level<input value={referenceLevel} disabled={runtime.state !== "ready" || running} onChange={(event) => { setReferenceLevel(event.target.value); setPlanConfirmed(false); }} /></label>
+            <label>5 · Comparison level<input value={comparisonLevel} disabled={runtime.state !== "ready" || running} onChange={(event) => { setComparisonLevel(event.target.value); setPlanConfirmed(false); }} /></label>
           </div>
-          <label className="execution-covariates">Covariates <small>Comma-separated metadata columns; leave empty for none</small><input value={covariates} disabled={!localRuntime || running} onChange={(event) => setCovariates(event.target.value)} placeholder="batch,sex" /></label>
-          <div className="execution-contract"><span>✓</span><p><strong>Exact controlled request</strong><code>~ {covariates.split(",").map((item) => item.trim()).filter(Boolean).join(" + ")}{covariates.trim() ? " + " : ""}{conditionColumn}</code><small>{comparisonLevel} versus {referenceLevel} · BH-adjusted p-values · no arbitrary formulas</small></p></div>
+          <label className="execution-covariates">5 · Covariates <small>Comma-separated metadata columns; leave empty for none</small><input value={covariates} disabled={runtime.state !== "ready" || running} onChange={(event) => { setCovariates(event.target.value); setPlanConfirmed(false); }} placeholder="batch,sex" /></label>
+          <div className="method-explanation"><span>Why</span><p><strong>Why {selectedMethodName}?</strong>{method === "deseq2_wald" ? "It is an allowlisted replicated-count workflow that estimates dispersion and evaluates the declared contrast with a Wald test." : "It is an allowlisted replicated-count workflow that models dispersion and uses quasi-likelihood testing for the declared contrast."}</p></div>
+          <div className="execution-contract"><span>✓</span><p><strong>5 · Exact controlled request</strong><code>~ {selectedCovariates.join(" + ")}{covariates.trim() ? " + " : ""}{conditionColumn}</code><small>{comparisonLevel} versus {referenceLevel} · BH-adjusted p-values · no arbitrary formulas</small></p></div>
+          <div className="execution-confirmation"><input id="confirm-execution-plan" type="checkbox" checked={planConfirmed} disabled={runtime.state !== "ready" || running} onChange={(event) => setPlanConfirmed(event.target.checked)} /><label htmlFor="confirm-execution-plan">I confirm this exact plan.<small>I reviewed the question, files, method, formula, contrast, covariates, and multiple-testing rule.</small></label></div>
           {error && <div className="execution-error" role="alert"><strong>Analysis not started</strong><span>{error}</span></div>}
-          <button className="primary-button full" type="submit" disabled={!localRuntime || !countsFile || !metadataFile || running}>{running ? "Running inside the local boundary…" : "Confirm and run analysis"} <span>{running ? "◌" : "→"}</span></button>
+          <button className="primary-button full" type="submit" disabled={runtime.state !== "ready" || !countsFile || !metadataFile || !planConfirmed || running}>{running ? "Running inside the controlled boundary…" : "6 · Run confirmed analysis"} <span>{running ? "◌" : "→"}</span></button>
         </form>
         <aside className="execution-aside">
           <section className="panel"><div className="section-head"><div><span className="panel-icon">◇</span><div><h2>Execution boundary</h2><p>What the adapter enforces</p></div></div></div><ul className="guard-list"><li><span>01</span><p><strong>Two fixed methods</strong>edgeR QL and DESeq2 Wald only</p></li><li><span>02</span><p><strong>Validated inputs</strong>Exact sample match and integer counts</p></li><li><span>03</span><p><strong>Temporary processing</strong>Uploads deleted after each request</p></li><li><span>04</span><p><strong>Auditable output</strong>Input, result, and software records</p></li></ul></section>
           <section className="panel input-limits"><h2>Default limits</h2><dl><div><dt>File size</dt><dd>50 MB each</dd></div><div><dt>Features</dt><dd>50,000</dd></div><div><dt>Samples</dt><dd>500</dd></div><div><dt>Runtime</dt><dd>15 minutes</dd></div><div><dt>Replication</dt><dd>≥ 2 per group</dd></div></dl></section>
         </aside>
       </div>
-      {visibleResult && <section className="panel execution-results"><div className="result-head"><div><Badge tone={resultIsSynthetic ? "blue" : "green"}>{resultIsSynthetic ? "SYNTHETIC RUN COMPLETE" : "RUN COMPLETE"}</Badge><h2>{visibleResult.comparison} versus {visibleResult.reference}</h2><p>{visibleResult.execution_id} · {visibleResult.design}</p></div><div><button className="secondary-button" onClick={() => download(JSON.stringify(visibleResult, null, 2), `${visibleResult.execution_id}-audit.json`, "application/json")}>Audit JSON <span>↓</span></button><button className="primary-button" onClick={() => { if (result) downloadResults(); else { const escape = (value: string | number | null) => `"${String(value ?? "").replaceAll('"', '""')}"`; const rows = visibleResult.results.map((row) => [row.feature_id, row.log2_fold_change, row.statistic, row.p_value, row.adjusted_p_value].map(escape).join(",")); download(["feature_id,log2_fold_change,statistic,p_value,adjusted_p_value", ...rows].join("\n"), `${visibleResult.execution_id}-results.csv`, "text/csv"); onToast("Synthetic result table downloaded"); } }}>Results CSV <span>↓</span></button></div></div>{resultIsSynthetic && <div className="synthetic-result-warning"><strong>Demonstration output only</strong><span>These fixed generic values do not describe a real organism, cohort, disease, or biological finding.</span></div>}<div className="run-facts"><span><small>Samples</small><strong>{visibleResult.sample_count}</strong></span><span><small>Input features</small><strong>{visibleResult.feature_count.toLocaleString()}</strong></span><span><small>Retained</small><strong>{visibleResult.retained_feature_count.toLocaleString()}</strong></span><span><small>Runtime</small><strong>{Object.entries(visibleResult.software_versions).map(([name, version]) => `${name} ${version}`).join(" · ")}</strong></span></div><div className="result-table-wrap"><table><thead><tr><th>Feature</th><th>log2 fold change</th><th>Statistic</th><th>p-value</th><th>Adjusted p-value</th></tr></thead><tbody>{visibleResult.results.slice(0, 100).map((row) => <tr key={row.feature_id}><td>{row.feature_id}</td><td>{formatNumber(row.log2_fold_change)}</td><td>{formatNumber(row.statistic)}</td><td>{formatNumber(row.p_value)}</td><td>{formatNumber(row.adjusted_p_value)}</td></tr>)}</tbody></table></div><div className="hash-record"><strong>Immutable run record</strong><code>counts {visibleResult.input_hashes.counts_sha256}</code><code>metadata {visibleResult.input_hashes.metadata_sha256}</code><code>output {visibleResult.output_hash}</code></div>{visibleResult.results.length > 100 && <p className="result-preview-note">Showing the first 100 adjusted-p-value-ranked features. The CSV download contains all {visibleResult.results.length.toLocaleString()} rows.</p>}</section>}
+      {visibleResult && <section className="panel execution-results"><div className="result-head"><div><Badge tone={resultIsSynthetic ? "blue" : "green"}>{resultIsSynthetic ? "SYNTHETIC RUN COMPLETE" : "RUN COMPLETE"}</Badge><h2>{visibleResult.comparison} versus {visibleResult.reference}</h2><p>{visibleResult.execution_id} · {visibleResult.design}</p></div><div><button className="report-button" onClick={() => downloadPdf(visibleResult)}>Scientific PDF <span>↓</span></button><button className="secondary-button" onClick={() => download(JSON.stringify(visibleResult, null, 2), `${visibleResult.execution_id}-audit.json`, "application/json")}>Audit JSON <span>↓</span></button><button className="primary-button" onClick={() => downloadResults(visibleResult)}>Results CSV <span>↓</span></button></div></div>{resultIsSynthetic && <div className="synthetic-result-warning"><strong>Demonstration output only</strong><span>These fixed generic values do not describe a real organism, cohort, disease, or biological finding.</span></div>}<div className="run-facts"><span><small>Samples</small><strong>{visibleResult.sample_count}</strong></span><span><small>Input features</small><strong>{visibleResult.feature_count.toLocaleString()}</strong></span><span><small>Retained</small><strong>{visibleResult.retained_feature_count.toLocaleString()}</strong></span><span><small>Runtime</small><strong>{Object.entries(visibleResult.software_versions).map(([name, version]) => `${name} ${version}`).join(" · ")}</strong></span></div><div className="result-table-wrap"><table><thead><tr><th>Feature</th><th>log2 fold change</th><th>Statistic</th><th>p-value</th><th>Adjusted p-value</th></tr></thead><tbody>{visibleResult.results.slice(0, 100).map((row) => <tr key={row.feature_id}><td>{row.feature_id}</td><td>{formatNumber(row.log2_fold_change)}</td><td>{formatNumber(row.statistic)}</td><td>{formatNumber(row.p_value)}</td><td>{formatNumber(row.adjusted_p_value)}</td></tr>)}</tbody></table></div><div className="hash-record"><strong>Immutable run record</strong><code>counts {visibleResult.input_hashes.counts_sha256}</code><code>metadata {visibleResult.input_hashes.metadata_sha256}</code><code>output {visibleResult.output_hash}</code></div>{visibleResult.results.length > 100 && <p className="result-preview-note">Showing the first 100 adjusted-p-value-ranked features. The CSV download contains all {visibleResult.results.length.toLocaleString()} rows.</p>}</section>}
+      {visibleResult && <section className="panel decision-trail"><div className="decision-trail-head"><div><span className="panel-icon">⌘</span><div><h2>Visible decision trail</h2><p>What happened, why it matters, what supports it, and what still needs review.</p></div></div><Badge tone="blue">NOT HIDDEN AI REASONING</Badge></div><div className="decision-trail-list">{buildDecisionTrail({ result: visibleResult, isSynthetic: resultIsSynthetic, datasetName: resultIsSynthetic ? "Synthetic_Cohort" : countsFile?.name ?? "Researcher dataset", researchQuestion: resultIsSynthetic ? "Which features differ between Group_B and Group_A under the fixed demonstration design?" : researchQuestion, conditionColumn, covariates: resultIsSynthetic ? ["Technical_Batch"] : selectedCovariates }).map((entry) => <article key={entry.process}><span className={entry.status === "COMPLETE" ? "complete" : "review"}>{entry.status === "COMPLETE" ? "✓" : "!"}</span><div><small>{entry.process}</small><h3>{entry.whatHappened}</h3><dl><div><dt>Why this matters</dt><dd>{entry.whyItMatters}</dd></div><div><dt>Evidence</dt><dd>{entry.evidence}</dd></div></dl></div><Badge tone={entry.status === "COMPLETE" ? "green" : "amber"}>{entry.status}</Badge></article>)}</div></section>}
     </div>
   );
 }
@@ -442,7 +481,7 @@ function ResultsGate({ navigate, destination }: { navigate: (view: View) => void
 
 export default function BioTrustApp() {
   const [view, setView] = useState<View>("overview");
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>("dark");
   const [syntheticResult, setSyntheticResult] = useState<ExecutionResult | null>(null);
   const [selectedClaim, setSelectedClaim] = useState(claims[0]);
   const [privacyOpen, setPrivacyOpen] = useState(false);
@@ -462,7 +501,7 @@ export default function BioTrustApp() {
   }, []);
   useEffect(() => {
     const saved = localStorage.getItem("biotrust.theme.v1");
-    const next: Theme = saved === "dark" || saved === "light" ? saved : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    const next: Theme = saved === "dark" || saved === "light" ? saved : "dark";
     document.documentElement.dataset.theme = next;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate the device-local display preference after mount
     setTheme(next);
@@ -483,8 +522,8 @@ export default function BioTrustApp() {
   const navigate = (next: View) => { setView(next); setMobileNav(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
   return (
     <main className="app-shell">
-      <div className={mobileNav ? "mobile-nav open" : "mobile-nav"}><Sidebar active={view} hasResults={Boolean(syntheticResult)} onNavigate={navigate} onPrivacy={() => setPrivacyOpen(true)} /><button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" /></div>
-      <section className="workspace"><Topbar view={view} theme={theme} canExport={Boolean(syntheticResult)} onToggleTheme={toggleTheme} onExport={exportAudit} onMenu={() => setMobileNav(true)} />
+      <div className={mobileNav ? "mobile-nav open" : "mobile-nav"}><Sidebar active={view} hasResults={Boolean(syntheticResult)} theme={theme} onNavigate={navigate} onPrivacy={() => setPrivacyOpen(true)} onToggleTheme={toggleTheme} /><button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" /></div>
+      <section className="workspace"><Topbar view={view} canExport={Boolean(syntheticResult)} onExport={exportAudit} onMenu={() => setMobileNav(true)} />
         {view === "overview" && <OverviewView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} hasResults={Boolean(syntheticResult)} />}
         {view === "projects" && <ProjectsView navigate={navigate} hasResults={Boolean(syntheticResult)} />}
         {view === "analysis" && <AnalysisView onToast={notify} />}
