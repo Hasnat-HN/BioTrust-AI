@@ -11,8 +11,9 @@ import {
   type MethodCard,
 } from "./data";
 import { buildDecisionTrail, type ReportExecutionResult } from "./decisionTrail";
+import HowItWorksView from "./HowItWorksView";
 
-type View = "overview" | "projects" | "analysis" | "execution" | "trust" | "claims" | "methods" | "provenance";
+type View = "how" | "overview" | "projects" | "analysis" | "execution" | "trust" | "claims" | "methods" | "provenance";
 
 type ExecutionResult = ReportExecutionResult;
 
@@ -47,17 +48,19 @@ const syntheticExecutionResult: ExecutionResult = {
 };
 
 const nav: Array<{ view: View; label: string; glyph: string; group?: string; count?: number }> = [
-  { view: "overview", label: "Overview", glyph: "⌂", group: "Workspace" },
+  { view: "how", label: "How it works", glyph: "?", group: "Start" },
+  { view: "overview", label: "Overview", glyph: "⌂" },
   { view: "projects", label: "Projects", glyph: "□" },
-  { view: "analysis", label: "Analysis plans", glyph: "⌁" },
+  { view: "analysis", label: "Analysis plan", glyph: "⌁", group: "Workflow" },
   { view: "execution", label: "Run analysis", glyph: "▶" },
-  { view: "trust", label: "Can I trust this?", glyph: "◇", group: "Scientific record" },
-  { view: "claims", label: "Claim ledger", glyph: "≡", count: 4 },
+  { view: "trust", label: "Review result", glyph: "◇", group: "Evidence" },
+  { view: "claims", label: "Claims", glyph: "≡", count: 4 },
   { view: "methods", label: "Method library", glyph: "◫" },
   { view: "provenance", label: "Provenance", glyph: "⌘" },
 ];
 
 const viewTitle: Record<View, string> = {
+  how: "How it works",
   overview: "Overview",
   projects: "Projects",
   analysis: "Analysis plan",
@@ -122,7 +125,7 @@ function AddMethodCardModal({ onClose, onSave }: { onClose: () => void; onSave: 
 function Sidebar({ active, hasResults, theme, onNavigate, onPrivacy, onToggleTheme }: { active: View; hasResults: boolean; theme: Theme; onNavigate: (view: View) => void; onPrivacy: () => void; onToggleTheme: () => void }) {
   return (
     <aside className="sidebar">
-      <button className="brand" onClick={() => onNavigate("overview")} aria-label="BioTrust AI home">
+      <button className="brand" onClick={() => onNavigate("how")} aria-label="BioTrust AI home">
         <span className="brand-mark" aria-hidden="true"><span className="trail-segment first" /><span className="trail-segment second" /><span className="trail-node first" /><span className="trail-node second" /><span className="trail-node third" /></span>
         <span>BioTrust <i>AI</i></span>
       </button>
@@ -141,8 +144,7 @@ function Sidebar({ active, hasResults, theme, onNavigate, onPrivacy, onToggleThe
         <span className="privacy-copy">Raw data stays inside the local computation boundary.</span>
         <span className="privacy-action">Inspect privacy boundary <span>→</span></span>
       </button>
-      <div className="user-row"><span className="avatar">BW</span><div><strong>BioTrust Workspace</strong><small>Local research environment</small></div><span>•••</span></div>
-      <button className="sidebar-theme-toggle" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`} title={`Switch to ${theme === "light" ? "dark" : "light"} mode`} onClick={onToggleTheme}><span>{theme === "light" ? "☾" : "☀"}</span><div><strong>{theme === "light" ? "Black mode" : "Light mode"}</strong><small>Change site appearance</small></div></button>
+      <button className="sidebar-theme-toggle" aria-label="Change appearance" title="Change appearance" onClick={onToggleTheme}><span aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span><strong>Change appearance</strong></button>
     </aside>
   );
 }
@@ -151,8 +153,8 @@ function Topbar({ view, canExport, onExport, onMenu }: { view: View; canExport: 
   return (
     <header className="topbar">
       <button className="mobile-menu" aria-label="Open navigation" onClick={onMenu}>☰</button>
-      <div className="breadcrumbs"><span>Synthetic transcriptomic association study</span><b>/</b><strong>{viewTitle[view]}</strong></div>
-      <div className="top-actions"><button className="export-btn" onClick={onExport} disabled={!canExport} title={canExport ? "Export the current audit record" : "Run the synthetic analysis before exporting an audit"}>Export audit <span>↗</span></button></div>
+      <div className="breadcrumbs"><span>BioTrust workspace</span><b>/</b><strong>{viewTitle[view]}</strong></div>
+      <div className="top-actions">{canExport && <button className="export-btn" onClick={onExport} title="Export the current audit record">Export audit <span>↗</span></button>}</div>
     </header>
   );
 }
@@ -260,11 +262,11 @@ function ExecutionView({ onToast, syntheticResult, onSyntheticResult }: { onToas
   const [countsFile, setCountsFile] = useState<File | null>(null);
   const [metadataFile, setMetadataFile] = useState<File | null>(null);
   const [method, setMethod] = useState("edger_qlf");
-  const [researchQuestion, setResearchQuestion] = useState("Which features differ between treated and control samples after adjustment for the declared covariates?");
+  const [researchQuestion, setResearchQuestion] = useState("Which features differ between Group_B and Group_A after adjustment for Technical_Batch?");
   const [conditionColumn, setConditionColumn] = useState("condition");
-  const [referenceLevel, setReferenceLevel] = useState("control");
-  const [comparisonLevel, setComparisonLevel] = useState("treated");
-  const [covariates, setCovariates] = useState("batch");
+  const [referenceLevel, setReferenceLevel] = useState("Group_A");
+  const [comparisonLevel, setComparisonLevel] = useState("Group_B");
+  const [covariates, setCovariates] = useState("Technical_Batch");
   const [planConfirmed, setPlanConfirmed] = useState(false);
   const [running, setRunning] = useState(false);
   const [demoRunning, setDemoRunning] = useState(false);
@@ -359,23 +361,12 @@ function ExecutionView({ onToast, syntheticResult, onSyntheticResult }: { onToas
     });
     onToast("Scientific PDF report downloaded");
   };
-  const guidedSteps = [
-    ["01", "Define the question", "State the exact comparison and intended interpretation."],
-    ["02", "Choose the data", "Use a synthetic fixture or upload an authorized count matrix and metadata."],
-    ["03", "Validate inputs", "Check identifiers, count values, sample matching, limits, and replication."],
-    ["04", "Choose the method", "Select only an allowlisted method that matches the data and question."],
-    ["05", "Confirm the plan", "Review the exact formula, contrast, covariates, and multiple-testing rule."],
-    ["06", "Run the analysis", "Execute in the controlled runtime and record software and hashes."],
-    ["07", "Review checks", "Inspect multiplicity, diagnostics, warnings, and sensitivity requirements."],
-    ["08", "Interpret carefully", "Separate data, inference, hypothesis, and unsupported claims."],
-    ["09", "Download the record", "Export PDF, complete CSV, and machine-readable audit JSON."],
-  ];
+  const runProgress = visibleResult ? 4 : planConfirmed ? 2 : 1;
   return (
     <div className="view execution-view">
       <div className="page-head"><div><span className="page-kicker">Guided, controlled computation</span><h1>Run a controlled analysis you can explain.</h1><p>Follow one visible path from the research question to a downloadable scientific record. Every decision, check, result, and limitation stays reviewable.</p></div><Badge tone={runtime.state === "ready" ? "green" : runtime.state === "checking" ? "blue" : "gray"}>{runtime.state === "checking" ? "CHECKING RUNNER" : runtime.state === "ready" ? `${runtime.location.toUpperCase()} RUNNER READY` : "DEMO MODE"}</Badge></div>
-      <section className="guided-workflow" aria-label="Guided analysis process">
-        <div className="guided-workflow-head"><div><span className="panel-icon">⌁</span><div><h2>The complete analysis path</h2><p>What you do, what BioTrust checks, and what you receive.</p></div></div><Badge tone="blue">9 CLEAR STEPS</Badge></div>
-        <div className="guided-step-grid">{guidedSteps.map(([number, title, explanation]) => <article key={number}><span>{number}</span><div><strong>{title}</strong><p>{explanation}</p></div></article>)}</div>
+      <section className="run-progress" aria-label="Current analysis progress">
+        {[["1", "Define", "Question and inputs"], ["2", "Confirm", "Exact analysis plan"], ["3", "Run", "Controlled execution"], ["4", "Review", "Results and downloads"]].map(([number, title, detail], index) => <div className={index + 1 <= runProgress ? "active" : ""} key={number}><span>{index + 1 < runProgress ? "✓" : number}</span><p><strong>{title}</strong><small>{detail}</small></p></div>)}
       </section>
       {runtime.state === "unavailable" && <section className="hosted-execution-notice"><span>⌂</span><div><strong>The public demonstration works online; the secure real-data runner is not connected yet.</strong><p>You can run the synthetic workflow and download its PDF now. Real files stay disabled until an authenticated, isolated computation service is deployed. For local real-data analysis, run <code>docker compose up --build</code>.</p></div><a href="https://github.com/Hasnat-HN/BioTrust-AI" target="_blank" rel="noreferrer">Open setup guide <span>↗</span></a></section>}
       {runtime.state === "ready" && runtime.location === "online" && <section className="online-execution-notice"><span>✓</span><div><strong>Controlled online runner connected</strong><p>Only upload data you are authorized to process. The runner validates inputs, uses temporary storage, and returns a hashed record.</p></div></section>}
@@ -480,7 +471,7 @@ function ResultsGate({ navigate, destination }: { navigate: (view: View) => void
 }
 
 export default function BioTrustApp() {
-  const [view, setView] = useState<View>("overview");
+  const [view, setView] = useState<View>("how");
   const [theme, setTheme] = useState<Theme>("dark");
   const [syntheticResult, setSyntheticResult] = useState<ExecutionResult | null>(null);
   const [selectedClaim, setSelectedClaim] = useState(claims[0]);
@@ -524,6 +515,7 @@ export default function BioTrustApp() {
     <main className="app-shell">
       <div className={mobileNav ? "mobile-nav open" : "mobile-nav"}><Sidebar active={view} hasResults={Boolean(syntheticResult)} theme={theme} onNavigate={navigate} onPrivacy={() => setPrivacyOpen(true)} onToggleTheme={toggleTheme} /><button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" /></div>
       <section className="workspace"><Topbar view={view} canExport={Boolean(syntheticResult)} onExport={exportAudit} onMenu={() => setMobileNav(true)} />
+        {view === "how" && <HowItWorksView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} hasResults={Boolean(syntheticResult)} />}
         {view === "overview" && <OverviewView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} hasResults={Boolean(syntheticResult)} />}
         {view === "projects" && <ProjectsView navigate={navigate} hasResults={Boolean(syntheticResult)} />}
         {view === "analysis" && <AnalysisView onToast={notify} />}

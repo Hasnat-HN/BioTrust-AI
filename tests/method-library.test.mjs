@@ -4,6 +4,7 @@ import test from "node:test";
 
 const dataSource = await readFile(new URL("../app/data.ts", import.meta.url), "utf8");
 const appSource = await readFile(new URL("../app/BioTrustApp.tsx", import.meta.url), "utf8");
+const howSource = await readFile(new URL("../app/HowItWorksView.tsx", import.meta.url), "utf8");
 
 test("ships a broad, reviewable built-in method catalog", () => {
   for (const slug of [
@@ -42,14 +43,15 @@ test("controlled execution stays gated while supporting a configured runner", ()
   assert.match(appSource, /I confirm this exact plan/);
 });
 
-test("sidebar identifies the workspace without inventing a researcher identity", () => {
-  assert.match(appSource, /BioTrust Workspace/);
-  assert.match(appSource, /Local research environment/);
+test("sidebar stays focused on navigation without inventing a researcher identity", () => {
+  assert.match(appSource, /How it works/);
+  assert.doesNotMatch(appSource, /BioTrust Workspace/);
+  assert.doesNotMatch(appSource, /Local research environment/);
   assert.doesNotMatch(appSource, /Synthetic researcher/);
 });
 
 test("the public demonstration begins empty and reveals results only after an explicit synthetic run", () => {
-  assert.match(appSource, /useState<View>\("overview"\)/);
+  assert.match(appSource, /useState<View>\("how"\)/);
   assert.match(appSource, /Run on synthetic data/);
   assert.match(appSource, /No results are preloaded/);
   assert.match(appSource, /syntheticResult \? <TrustView/);
@@ -57,12 +59,22 @@ test("the public demonstration begins empty and reveals results only after an ex
   assert.match(appSource, /syntheticResult \? <ProvenanceView/);
 });
 
-test("defaults to black and keeps the appearance control in the bottom-left sidebar", () => {
+test("defaults to black and uses one neutral appearance control", () => {
   assert.match(appSource, /trail-node third/);
   assert.doesNotMatch(appSource, /className="brand-mark">B</);
   assert.match(appSource, /useState<Theme>\("dark"\)/);
   assert.match(appSource, /biotrust\.theme\.v1/);
   assert.match(appSource, /className="sidebar-theme-toggle"/);
-  assert.match(appSource, /Change site appearance/);
-  assert.match(appSource, /Switch to \$\{theme === "light" \? "dark" : "light"\} mode/);
+  assert.match(appSource, /aria-label="Change appearance"/);
+  assert.doesNotMatch(appSource, /Black mode|Light mode|Switch to/);
+});
+
+test("explains the complete workflow with one consistent synthetic example", () => {
+  assert.match(howSource, /Understand the analysis before you run it/);
+  assert.match(howSource, /Group_B versus Group_A/);
+  assert.match(howSource, /Technical_Batch/);
+  assert.match(howSource, /Scientific PDF · complete results CSV · machine-readable audit JSON/);
+  assert.match(howSource, /public GitHub Pages site can execute the fixed synthetic demonstration/);
+  assert.equal((howSource.match(/number: "0[1-6]"/g) ?? []).length, 6);
+  assert.match(appSource, /className="run-progress"/);
 });
