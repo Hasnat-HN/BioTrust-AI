@@ -11,11 +11,12 @@ import {
   type MethodCard,
 } from "./data";
 import { buildDecisionTrail, type ReportExecutionResult } from "./decisionTrail";
+import AnalyzeDataView from "./AnalyzeDataView";
 import HowItWorksView from "./HowItWorksView";
 import MelanomaCaseStudyView, { type MelanomaWorkflowOutput } from "./MelanomaCaseStudyView";
 import { defaultMelanomaPlan, type MelanomaWorkflowPlan } from "./melanomaWorkflow";
 
-type View = "overview" | "how" | "example" | "projects" | "analysis" | "execution" | "controlled" | "trust" | "claims" | "methods" | "provenance";
+type View = "overview" | "how" | "example" | "analyze" | "projects" | "analysis" | "execution" | "controlled" | "trust" | "claims" | "methods" | "provenance";
 
 type ExecutionResult = ReportExecutionResult;
 
@@ -24,17 +25,14 @@ type Theme = "light" | "dark";
 const nav: Array<{ view: View; label: string; glyph: string; group?: string; count?: number }> = [
   { view: "how", label: "How it works", glyph: "?", group: "Start" },
   { view: "example", label: "Example", glyph: "◎" },
-  { view: "controlled", label: "Controlled R runner", glyph: "↗", group: "Real data" },
-  { view: "trust", label: "Review result", glyph: "◇", group: "Evidence" },
-  { view: "claims", label: "Claims", glyph: "≡", count: 4 },
-  { view: "methods", label: "Method library", glyph: "◫" },
-  { view: "provenance", label: "Provenance", glyph: "⌘" },
+  { view: "analyze", label: "Analyze your data", glyph: "＋", group: "Your study" },
 ];
 
 const viewTitle: Record<View, string> = {
   overview: "Overview",
   how: "How it works",
-  example: "Interactive analysis example",
+  example: "Example",
+  analyze: "Analyze your data",
   projects: "Projects",
   analysis: "Analysis plan",
   execution: "Synthetic analysis execution",
@@ -113,12 +111,10 @@ function Sidebar({ active, hasResults, theme, onNavigate, onPrivacy, onToggleThe
           </div>
         ))}
       </nav>
-      <button className="privacy-card" onClick={onPrivacy}>
-        <span className="privacy-row"><span className="lock">●</span><strong>No external AI</strong></span>
-        <span className="privacy-copy">Raw data stays inside the local computation boundary.</span>
-        <span className="privacy-action">Inspect privacy boundary <span>→</span></span>
-      </button>
-      <button className="sidebar-theme-toggle" aria-label="Change appearance" title="Change appearance" onClick={onToggleTheme}><span aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span><strong>Change appearance</strong></button>
+      <div className="sidebar-tools">
+        <button aria-label="Inspect privacy boundary" title="Inspect privacy boundary" onClick={onPrivacy}><span aria-hidden="true">●</span></button>
+        <button className="sidebar-theme-toggle" aria-label="Change appearance" title="Change appearance" onClick={onToggleTheme}><span aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span></button>
+      </div>
     </aside>
   );
 }
@@ -455,6 +451,7 @@ export default function BioTrustApp() {
       <section className="workspace"><Topbar view={view} canExport={Boolean(syntheticResult)} onExport={exportAudit} onMenu={() => setMobileNav(true)} />
         {view === "example" && <MelanomaCaseStudyView plan={melanomaPlan} output={melanomaOutput} onPlanChange={updateMelanomaPlan} onOutput={setMelanomaOutput} onComplete={setSyntheticResult} onControlled={() => navigate("controlled")} onToast={notify} />}
         {view === "how" && <HowItWorksView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} hasResults={Boolean(syntheticResult)} />}
+        {view === "analyze" && <AnalyzeDataView onToast={notify} onControlled={() => navigate("controlled")} />}
         {view === "overview" && <OverviewView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} hasResults={Boolean(syntheticResult)} />}
         {view === "projects" && <ProjectsView navigate={navigate} hasResults={Boolean(syntheticResult)} />}
         {view === "controlled" && <ExecutionView onToast={notify} />}

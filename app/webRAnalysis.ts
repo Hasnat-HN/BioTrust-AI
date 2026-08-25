@@ -70,7 +70,7 @@ type WebRRuntime = import("webr").WebR;
 
 let runtimePromise: Promise<WebRRuntime> | null = null;
 
-async function getRuntime(onProgress?: (message: string) => void): Promise<WebRRuntime> {
+export async function getWebRRuntime(onProgress?: (message: string) => void): Promise<WebRRuntime> {
   if (!runtimePromise) {
     runtimePromise = (async () => {
       onProgress?.("Downloading the browser R runtime");
@@ -122,7 +122,7 @@ function parseRResults(value: string, dataset: MelanomaDataset, selectedMethods:
 
 export async function runWebRAnalysis(dataset: MelanomaDataset, selectedMethods: WebRMethodId[], onProgress?: (message: string) => void): Promise<WebRExecutionResult> {
   if (selectedMethods.length === 0) throw new Error("Select at least one R method");
-  const runtime = await getRuntime(onProgress);
+  const runtime = await getWebRRuntime(onProgress);
   onProgress?.("Loading the synthetic matrix into R");
   const suffix = `${dataset.seed}-${Date.now()}`;
   const metadataPath = `/tmp/biotrust-metadata-${suffix}.csv`;

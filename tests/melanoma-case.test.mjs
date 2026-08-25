@@ -44,7 +44,7 @@ test("generates a deterministic multivariable synthetic melanoma fixture", () =>
 });
 
 test("keeps selection, execution, and results together inside Example", () => {
-  assert.match(appSource, /Choose the methods and run the complete example here/);
+  assert.match(appSource, /Run one melanoma RNA-seq question from data profile to report/);
   assert.match(appSource, /id="example-plan"/);
   assert.match(appSource, /id="example-run"/);
   assert.match(appSource, /Choose exactly what will run/);

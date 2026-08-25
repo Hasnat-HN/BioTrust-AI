@@ -50,7 +50,7 @@ export function createAnalysisReport(options: AnalysisReportOptions): jsPDF {
   doc.setTextColor(isSynthetic ? 32 : 30, isSynthetic ? 93 : 92, isSynthetic ? 121 : 73);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.text(isSynthetic ? "SYNTHETIC DEMONSTRATION — NOT A BIOLOGICAL OR CLINICAL RESULT" : "CONTROLLED REAL-DATA EXECUTION — REQUIRES RESEARCHER REVIEW", 21, 71);
+  doc.text(isSynthetic ? "SYNTHETIC DEMONSTRATION — NOT A BIOLOGICAL OR CLINICAL RESULT" : "REAL-DATA ANALYSIS RECORD — REQUIRES RESEARCHER REVIEW", 21, 71);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.text(isSynthetic ? "The values below are generic and exist only to demonstrate the workflow." : "Statistical output does not establish causality, mechanism, diagnosis, or clinical utility.", 21, 77);

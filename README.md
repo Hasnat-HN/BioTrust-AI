@@ -12,37 +12,23 @@ The aim is simple: AI should help researchers reason through an analysis, not be
 
 **Live web application:** [Open BioTrust AI](https://hasnat-hn.github.io/BioTrust-AI/)
 
-The public application runs the complete synthetic workflow in the browser and produces downloadable PDF, CSV, and JSON records. Private dataset uploads remain disabled unless a separately secured computation service is connected. Run the project locally to execute real count matrices within the controlled Docker boundary.
+The public application runs entirely in the browser. It provides one complete synthetic example and a working **Analyze your data** path that reads a count matrix and sample metadata locally, profiles the study, lets the researcher choose the question and methods, executes selected JavaScript and R `stats` analyses, compares them, and exports PDF, CSV, and JSON records. Uploaded files are not sent to BioTrust or an external AI service.
 
-The site always opens on **How it works**. The next page, **Example**, asks which synthetic expression features and tumor-microenvironment programs are associated with synthetic PD-1 response in melanoma. Dataset inspection, selectable analysis modules, JavaScript methods, genuine browser-R methods, AI guidance, confirmation, execution, interpretation, and downloads all stay together on that one page.
+The public navigation deliberately has only three destinations: **How it works**, **Example**, and **Analyze your data**. Example is the only built-in demonstration and uses a synthetic melanoma tumor-microenvironment study. Dataset inspection, selectable analyses, genuine browser-R methods, guidance, confirmation, execution, interpretation, and downloads stay together on that page.
 
 ## What is implemented
 
-- Interactive Next.js/Vinext research workspace that ships with synthetic demonstration data and connects to the local controlled execution API for real datasets
-- Deterministic melanoma tumor-microenvironment case with 180 synthetic tumors, 1,200 generic expression features, and no real patient or gene data
-- Graphical pre-analysis profile of data type, dimensions, group sizes, library sizes, zero rate, tumor purity, batches, stage, biopsy site, and method-suitability checks
-- Researcher-selectable analysis modules for JavaScript DGE, genuine R-package DGE, TME program summaries, tumor-purity sensitivity, and neural integration
-- Researcher-selectable adjusted log-CPM regression, Welch screening, and Wilcoxon rank-sum screening; one method can run alone and two or more automatically activate comparison
-- Real R 4.6 execution in the browser through webR, with selectable `stats` adjusted OLS, Welch, and Wilcoxon methods, package-version recording, complete 1,200-feature output, and R results CSV export
-- Pairwise effect-rank agreement, sign concordance, top-feature overlap, FDR overlap, consensus features, and a question-matched method recommendation
-- Multivariable score and feature models adjusting for age, recorded sex, disease stage, biopsy site, prior systemic therapy, tumor purity, and sequencing batch
-- Analysis-plan builder embedded directly in Example whose question, modules, JavaScript methods, R methods, comparison depth, and purity threshold control the execution
-- Local AI method guide that explains suitability, limitations, covariate capability, evidence boundaries, and the consequences of the researcher's current choices
-- Result-review and adversarial-review surface
-- Evidence-synthesis engine that connects method agreement, disagreement, covariate capability, neural prediction, claim boundaries, and next analyses back to cited evidence IDs
-- Deterministic 13-input, 8-hidden-unit neural integration model with five-fold cross-validation, AUROC, balanced accuracy, Brier score, and explicitly non-causal weight-path sensitivity
-- Claim ledger with scientific statement classifications
-- Searchable Method Card library
-- 18 built-in Method Cards including edgeR, DESeq2, limma, camera, ROAST, fgsea, dream, SVA, ComBat-seq, regression, correlation, and PCA
-- Researcher-created Method Cards with local persistence, JSON import/export, and mandatory review labeling
-- Append-only provenance timeline and sanitized JSON audit export
-- AI Context Inspector with `NO_EXTERNAL_AI_MODE`
-- FastAPI foundation for projects, datasets, analysis plans, claims, context previews, and evidence assessment
-- Controlled edgeR quasi-likelihood and DESeq2 Wald execution adapters for real RNA-seq count matrices
-- Strict CSV validation, method allowlisting, temporary input handling, SHA-256 audit hashes, software versions, and downloadable results
-- Nine-step guided analysis flow explaining what the researcher does, what BioTrust checks, why each step matters, and what still needs review
-- Downloadable scientific PDF report with the question, method rationale, decision trail, result preview, limitations, software versions, and hashes
-- Deterministic privacy, claim-warning, and evidence rules with tests
+- Three-page public workflow: How it works, one Example, and Analyze your data
+- Browser-local CSV/TSV loading for feature-by-sample counts plus sample metadata
+- Automatic sample matching, input validation, matrix dimensions, zero rate, library-size graph, and metadata-variable detection
+- Researcher-defined question, condition column, reference/comparison levels, and optional numeric or categorical covariates
+- Selectable adjusted log-CPM regression, Welch, and Wilcoxon methods in JavaScript and genuine R through webR
+- Multi-method comparison of effect direction, top features, and FDR calls with a question-matched recommendation
+- Downloadable complete results CSV, audit JSON, and scientific PDF report
+- One deterministic melanoma tumor-microenvironment example with 180 synthetic tumors and 1,200 generic features
+- Optional synthetic program summaries, tumor-purity sensitivity, and bounded neural integration in the Example
+- Controlled edgeR quasi-likelihood and DESeq2 Wald adapters for count-native analysis through the secured Docker runner
+- Explicit interpretation boundaries: association is not causality, method agreement is not replication, and browser transformed-count methods are not edgeR or DESeq2
 
 ## Run locally with Docker
 
@@ -54,7 +40,7 @@ docker compose up --build
 
 Open `http://localhost:3000`. Raw research data are not required by the synthetic demonstration and must not be committed to this repository.
 
-Open **Example** to run the complete synthetic workflow, including the local webR methods. For a real count matrix, open **Controlled R runner** in the sidebar. You can start with [`examples/counts.csv`](examples/counts.csv) and [`examples/metadata.csv`](examples/metadata.csv), then select `condition`, `control`, and `treated`. The Docker backend contains the pinned Bioconductor execution environment.
+Open **Example** to run the complete synthetic workflow. Open **Analyze your data** to load a real count matrix and metadata directly in the browser, inspect the structure, define the contrast and covariates, and choose JavaScript or R `stats` methods. The public browser path is limited to 500 samples and 5,000 features. The Docker backend contains the pinned Bioconductor environment for count-native edgeR and DESeq2 execution.
 
 See [the controlled execution guide](docs/EXECUTION_LAYER.md) for the accepted CSV format, limits, security boundary, and method-extension process.
 

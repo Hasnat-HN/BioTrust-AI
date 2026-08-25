@@ -11,7 +11,7 @@
     "build:pages": "vite build --config vite.pages.config.ts",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run report:sample && npm run build && npm run build:pages && node --test tests/*.test.mjs",
-    "report:sample": "node --experimental-strip-types scripts/generate-example-report.ts && node --experimental-strip-types scripts/generate-melanoma-report.ts",
+    "report:sample": "node --experimental-strip-types scripts/generate-example-report.ts && node --experimental-strip-types scripts/generate-melanoma-report.ts && node --experimental-strip-types scripts/generate-user-data-report.ts",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern pages-dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },

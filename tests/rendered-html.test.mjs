@@ -18,15 +18,15 @@ test("server-renders the BioTrust AI evidence workspace", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
   assert.match(html, /BioTrust AI/);
-  assert.match(html, /The AI advises\. The researcher decides/);
-  assert.match(html, /Open the interactive Example/);
+  assert.match(html, /Understand the data, choose the method/);
+  assert.match(html, /Open Example/);
   assert.match(html, /How it works/);
   assert.match(html, /Example/);
-  assert.doesNotMatch(html, />Analysis plan<|>Run analysis</);
+  assert.match(html, /Analyze your data/);
+  assert.doesNotMatch(html, />Overview<|>Projects<|>Analysis plan<|>Run analysis<|>Claims<|>Provenance</);
   assert.doesNotMatch(html, /Can I trust this result\?/);
   assert.doesNotMatch(html, /Evidence profile/);
-  assert.match(html, /No external AI/i);
-  assert.match(html, /How it works/);
+  assert.match(html, /Inspect computation boundary/i);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|react-loading-skeleton/);
 });
 
@@ -34,5 +34,5 @@ test("emits site-specific social metadata", async () => {
   const html = await (await render()).text();
   assert.match(html, /BioTrust AI — Auditable Bioinformatics/);
   assert.match(html, /http:\/\/localhost:3000\/og\.png/);
-  assert.match(html, /Researcher-controlled cancer analysis with selectable JavaScript and browser-R methods, sensitivity analysis, and traceable interpretation\./);
+  assert.match(html, /Load, inspect, and analyze RNA-seq count data with selectable JavaScript and browser-R methods, one worked example, and traceable interpretation\./);
 });

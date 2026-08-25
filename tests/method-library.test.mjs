@@ -76,15 +76,15 @@ test("defaults to black and uses one neutral appearance control", () => {
 });
 
 test("explains the complete workflow with one consistent synthetic example", () => {
-  assert.match(howSource, /The AI advises\. The researcher decides/);
+  assert.match(howSource, /ONE BUILT-IN EXAMPLE/);
   assert.match(howSource, /Synthetic melanoma RNA-seq/);
-  assert.match(howSource, /The researcher selects feature-level DGE/);
-  assert.match(howSource, /genuine R stats package functions/);
-  assert.match(howSource, /Only the confirmed modules and methods execute/);
+  assert.match(howSource, /load your own count matrix and sample metadata/);
+  assert.match(howSource, /genuine R methods/);
+  assert.match(howSource, /Only confirmed methods run/);
   assert.match(howSource, /Suggestion is never confused with authorization/);
-  assert.match(howSource, /Five-fold neural integration/);
+  assert.match(howSource, /PDF, CSV, and audit export/);
   assert.match(appSource, /className="run-progress"/);
   assert.match(melanomaSource, /AI METHOD GUIDE · LOCAL RULES/);
-  assert.match(melanomaSource, /select the example analysis/);
+  assert.match(melanomaSource, /Example · build the plan/);
   assert.doesNotMatch(appSource, /Mock provider/);
 });
