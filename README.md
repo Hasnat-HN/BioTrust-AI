@@ -14,18 +14,19 @@ The aim is simple: AI should help researchers reason through an analysis, not be
 
 The public application runs the complete synthetic workflow in the browser and produces downloadable PDF, CSV, and JSON records. Private dataset uploads remain disabled unless a separately secured computation service is connected. Run the project locally to execute real count matrices within the controlled Docker boundary.
 
-The default worked case asks which synthetic expression features and tumor-microenvironment programs are associated with synthetic PD-1 response in melanoma. The researcher first explores the count matrix graphically, then chooses at least two differential-expression methods, locks a shared comparison contract, and accepts the analysis plan before inferential results are shown.
+The worked Example asks which synthetic expression features and tumor-microenvironment programs are associated with synthetic PD-1 response in melanoma. The Example page explains the question and graphically profiles the cohort without running an analysis. The researcher then chooses the desired analysis modules and one or more methods in Analysis plan; Run analysis executes only that confirmed plan.
 
 ## What is implemented
 
 - Interactive Next.js/Vinext research workspace that ships with synthetic demonstration data and connects to the local controlled execution API for real datasets
 - Deterministic melanoma tumor-microenvironment case with 180 synthetic tumors, 1,200 generic expression features, and no real patient or gene data
 - Graphical pre-analysis profile of data type, dimensions, group sizes, library sizes, zero rate, tumor purity, batches, stage, biopsy site, and method-suitability checks
-- Researcher-selectable browser comparison of adjusted log-CPM regression, Welch screening, and Wilcoxon rank-sum screening on the same samples and feature universe
+- Researcher-selectable analysis modules for feature-level DGE, TME program summaries, tumor-purity sensitivity, and neural integration
+- Researcher-selectable adjusted log-CPM regression, Welch screening, and Wilcoxon rank-sum screening; one method can run alone and two or more automatically activate comparison
 - Pairwise effect-rank agreement, sign concordance, top-feature overlap, FDR overlap, consensus features, and a question-matched method recommendation
 - Multivariable score and feature models adjusting for age, recorded sex, disease stage, biopsy site, prior systemic therapy, tumor purity, and sequencing batch
-- Structured analysis-plan builder with an exact formula preview
-- AI proposal lifecycle with explicit accept, modify, and reject actions
+- Shared analysis-plan builder whose question, modules, DGE methods, comparison depth, and purity threshold directly control the synthetic execution
+- Local AI method guide that explains suitability, limitations, covariate capability, evidence boundaries, and the consequences of the researcher's current choices
 - Result-review and adversarial-review surface
 - Evidence-synthesis engine that connects method agreement, disagreement, covariate capability, neural prediction, claim boundaries, and next analyses back to cited evidence IDs
 - Deterministic 13-input, 8-hidden-unit neural integration model with five-fold cross-validation, AUROC, balanced accuracy, Brier score, and explicitly non-causal weight-path sensitivity

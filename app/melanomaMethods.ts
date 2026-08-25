@@ -481,9 +481,10 @@ export function runNeuralIntegration(dataset: MelanomaDataset): NeuralIntegratio
   };
 }
 
-export function buildComparisonSynthesis(comparison: DgeMethodComparison, neural: NeuralIntegrationResult): ComparisonSynthesis {
-  const averageRankAgreement = mean(comparison.pairwise.map((pair) => pair.effect_spearman));
-  const averageSignAgreement = mean(comparison.pairwise.map((pair) => pair.sign_concordance));
+export function buildComparisonSynthesis(comparison: DgeMethodComparison, neural?: NeuralIntegrationResult): ComparisonSynthesis {
+  const hasComparison = comparison.pairwise.length > 0;
+  const averageRankAgreement = hasComparison ? mean(comparison.pairwise.map((pair) => pair.effect_spearman)) : 0;
+  const averageSignAgreement = hasComparison ? mean(comparison.pairwise.map((pair) => pair.sign_concordance)) : 0;
   const weakestPair = [...comparison.pairwise].sort((left, right) => left.effect_spearman - right.effect_spearman)[0];
   const recommended = comparison.runs.find((run) => run.method.id === comparison.recommendation.method_id) ?? comparison.runs[0];
   const adjustedWasSelected = comparison.runs.some((run) => run.method.id === "adjusted_ols");
@@ -493,8 +494,8 @@ export function buildComparisonSynthesis(comparison: DgeMethodComparison, neural
   return {
     generated_by: "BioTrust traceable comparison rules v2",
     summary: adjustedWasSelected
-      ? `The selected methods show ${averageSignAgreement >= 0.8 ? "strong" : "mixed"} directional agreement, but only the multivariable model answers the conditional research question. The neural model adds an internally cross-validated prediction view; it does not change the statistical method recommendation.`
-      : "The selected unadjusted methods provide sensitivity views, but neither answers the conditional research question. Add the multivariable model before treating any result as primary; the neural model remains a separate prediction analysis.",
+      ? `${hasComparison ? `The selected methods show ${averageSignAgreement >= 0.8 ? "strong" : "mixed"} directional agreement, but ` : ""}the multivariable model answers the conditional research question.${neural ? " The selected neural model adds an internally cross-validated prediction view; it does not change the statistical method recommendation." : " No neural analysis was requested."}`
+      : `${hasComparison ? "The selected unadjusted methods provide sensitivity views" : "The selected unadjusted method provides a descriptive sensitivity view"}, but ${hasComparison ? "none answers" : "it does not answer"} the conditional research question. Add the multivariable model before treating a result as primary.${neural ? " The neural model remains a separate prediction analysis." : ""}`,
     connections: [
       {
         id: "M1",
@@ -504,29 +505,50 @@ export function buildComparisonSynthesis(comparison: DgeMethodComparison, neural
         implication: "Different discovery counts reflect different estimands and assumptions, so the outputs should not be pooled into one vote.",
         evidence_refs: ["method_comparison.runs", "user_choice.selected_methods"],
       },
-      {
+      hasComparison ? {
         id: "A1",
         kind: "evidence",
         title: "Agreement supports sensitivity, not replication",
         finding: `Mean pairwise effect-rank correlation is ${averageRankAgreement.toFixed(2)} and mean sign agreement is ${(100 * averageSignAgreement).toFixed(1)}%.`,
         implication: "The main signal is reasonably stable to these browser modeling choices, but it has not been tested in an independent cohort.",
         evidence_refs: ["method_comparison.pairwise.effect_spearman", "method_comparison.pairwise.sign_concordance"],
+      } : {
+        id: "A1",
+        kind: "qualifier",
+        title: "No method comparison was requested",
+        finding: "The researcher selected one DGE method, so no pairwise agreement statistics were calculated.",
+        implication: "Add another method only if sensitivity to modeling assumptions is part of the research objective.",
+        evidence_refs: ["user_choice.selected_methods", "method_comparison.runs"],
       },
-      {
+      hasComparison ? {
         id: "D1",
         kind: "qualifier",
         title: "The weakest agreement remains visible",
-        finding: weakestPair ? `${pairLabel} have the lowest effect-rank correlation (${weakestPair.effect_spearman.toFixed(2)}), with ${weakestPair.top_50_overlap} of their top 50 features shared.` : "Only one method pair was available.",
+        finding: `${pairLabel} have the lowest effect-rank correlation (${weakestPair!.effect_spearman.toFixed(2)}), with ${weakestPair!.top_50_overlap} of their top 50 features shared.`,
         implication: "Inspect features that move rank or significance before making a biological narrative; disagreement can reveal covariate or distribution sensitivity.",
         evidence_refs: ["method_comparison.pairwise", "method_comparison.consensus_features"],
+      } : {
+        id: "D1",
+        kind: "boundary",
+        title: "Single-method evidence boundary",
+        finding: "Rank, sign, top-feature, and FDR-overlap comparisons are not defined for a single method.",
+        implication: "Do not describe this run as robust to alternative statistical methods.",
+        evidence_refs: ["method_comparison.pairwise"],
       },
-      {
+      neural ? {
         id: "N1",
         kind: "boundary",
         title: "Neural prediction is a different question",
         finding: `The deterministic five-fold neural model achieved internal AUROC ${neural.auc.toFixed(3)} and balanced accuracy ${(100 * neural.balanced_accuracy).toFixed(1)}% on this synthetic cohort.`,
         implication: "This can prioritize multivariable patterns for follow-up; it cannot establish mechanism, causal importance, biomarker validity, or external performance.",
         evidence_refs: ["neural_integration.auc", "neural_integration.balanced_accuracy", "neural_integration.warnings"],
+      } : {
+        id: "N1",
+        kind: "boundary",
+        title: "Neural analysis was not selected",
+        finding: "No predictive neural model was executed for this researcher-confirmed plan.",
+        implication: "The synthesis does not infer predictive performance or model sensitivity from unexecuted analysis.",
+        evidence_refs: ["researcher_plan.analyses"],
       },
       {
         id: "C1",

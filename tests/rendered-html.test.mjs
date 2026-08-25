@@ -18,12 +18,12 @@ test("server-renders the BioTrust AI evidence workspace", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
   assert.match(html, /BioTrust AI/);
-  assert.match(html, /Explore first\. Compare methods\. Then interpret\./);
-  assert.match(html, /melanoma tumor microenvironment/i);
-  assert.match(html, /Explore synthetic dataset/);
-  assert.match(html, /The first action is descriptive, not statistical/);
-  assert.match(html, /2 or more methods/);
-  assert.match(html, /No upload/);
+  assert.match(html, /Evidence before confidence\./);
+  assert.match(html, /Choose analyses and methods/);
+  assert.match(html, /How it works/);
+  assert.match(html, /Example/);
+  assert.match(html, /Analysis plan/);
+  assert.match(html, /Run analysis/);
   assert.doesNotMatch(html, /Can I trust this result\?/);
   assert.doesNotMatch(html, /Evidence profile/);
   assert.match(html, /No external AI/i);
@@ -35,5 +35,5 @@ test("emits site-specific social metadata", async () => {
   const html = await (await render()).text();
   assert.match(html, /BioTrust AI — Auditable Bioinformatics/);
   assert.match(html, /http:\/\/localhost:3000\/og\.png/);
-  assert.match(html, /Complex bioinformatics questions decomposed into auditable analysis protocols\./);
+  assert.match(html, /Researcher-controlled melanoma analysis with method comparison, sensitivity analysis, and traceable interpretation\./);
 });

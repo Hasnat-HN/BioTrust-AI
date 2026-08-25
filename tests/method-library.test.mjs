@@ -33,12 +33,12 @@ test("custom method cards are local and always require review", () => {
 });
 
 test("controlled execution stays gated while supporting a configured runner", () => {
-  assert.match(appSource, /Run a controlled analysis/);
+  assert.match(appSource, /Run edgeR or DESeq2 on an authorized real dataset/);
   assert.match(appSource, /api\/executions\/run/);
   assert.match(appSource, /edgeR quasi-likelihood/);
   assert.match(appSource, /DESeq2 Wald test/);
   assert.match(appSource, /no arbitrary formulas/i);
-  assert.match(appSource, /secure real-data runner is not connected yet/i);
+  assert.match(appSource, /secure real-data runner is not connected to this public page/i);
   assert.match(appSource, /runtime\.state !== "ready"/);
   assert.match(appSource, /Scientific PDF/);
   assert.match(appSource, /I confirm this exact plan/);
@@ -52,11 +52,13 @@ test("sidebar stays focused on navigation without inventing a researcher identit
 });
 
 test("the public demonstration begins empty and reveals results only after an explicit synthetic run", () => {
-  assert.match(appSource, /useState<View>\("melanoma"\)/);
-  assert.match(melanomaSource, /Explore synthetic dataset/);
-  assert.match(melanomaSource, /Run and compare methods/);
+  assert.match(appSource, /useState<View>\("overview"\)/);
+  assert.match(appSource, /label: "How it works"/);
+  assert.match(appSource, /label: "Example"/);
+  assert.match(melanomaSource, /NO ANALYSIS RUNS HERE/);
+  assert.match(melanomaSource, /Run my analysis plan/);
   assert.match(melanomaSource, /Results sealed/);
-  assert.match(melanomaSource, /decision !== "accepted"/);
+  assert.match(melanomaSource, /plan\.confirmed/);
   assert.match(appSource, /syntheticResult \? <TrustView/);
   assert.match(appSource, /syntheticResult \? <ClaimsView/);
   assert.match(appSource, /syntheticResult \? <ProvenanceView/);
@@ -73,18 +75,15 @@ test("defaults to black and uses one neutral appearance control", () => {
 });
 
 test("explains the complete workflow with one consistent synthetic example", () => {
-  assert.match(howSource, /Resolve a complex question into testable parts/);
-  assert.match(howSource, /associated with a reproducible expression program/);
-  assert.match(howSource, /Clinical_Score/);
-  assert.match(howSource, /without claiming causation, mediation, or cell abundance/);
-  assert.match(howSource, /Technical_Batch/);
-  for (const branch of ["P1", "S1", "C1", "G1", "V1"]) assert.match(howSource, new RegExp(`id: "${branch}"`));
-  assert.match(howSource, /Robustness support; not replication/);
-  assert.match(howSource, /Shared pattern; not mediation or causation/);
-  assert.match(howSource, /Gene-set shift; not measured cell abundance/);
-  assert.match(howSource, /additional branches require controlled adapters rather than simulated results/);
+  assert.match(howSource, /The AI advises\. The researcher decides/);
+  assert.match(howSource, /Synthetic melanoma RNA-seq/);
+  assert.match(howSource, /The researcher selects feature-level DGE/);
+  assert.match(howSource, /Adjusted OLS, Welch, Wilcoxon/);
+  assert.match(howSource, /Only the confirmed modules and methods execute/);
+  assert.match(howSource, /Suggestion is never confused with authorization/);
+  assert.match(howSource, /Five-fold neural integration/);
   assert.match(appSource, /className="run-progress"/);
-  assert.match(appSource, /Linked analysis program/);
-  assert.match(appSource, /PROTOCOL LOCKED/);
+  assert.match(melanomaSource, /AI METHOD GUIDE · LOCAL RULES/);
+  assert.match(melanomaSource, /researcher-selected plan/);
   assert.doesNotMatch(appSource, /Mock provider/);
 });

@@ -12,49 +12,23 @@ import {
 } from "./data";
 import { buildDecisionTrail, type ReportExecutionResult } from "./decisionTrail";
 import HowItWorksView from "./HowItWorksView";
-import MelanomaCaseStudyView from "./MelanomaCaseStudyView";
+import MelanomaCaseStudyView, { MelanomaAnalysisPlanView, MelanomaExecutionView, type MelanomaWorkflowOutput } from "./MelanomaCaseStudyView";
+import { defaultMelanomaPlan, type MelanomaWorkflowPlan } from "./melanomaWorkflow";
 
-type View = "melanoma" | "how" | "overview" | "projects" | "analysis" | "execution" | "trust" | "claims" | "methods" | "provenance";
+type View = "overview" | "how" | "example" | "projects" | "analysis" | "execution" | "controlled" | "trust" | "claims" | "methods" | "provenance";
 
 type ExecutionResult = ReportExecutionResult;
 
 type Theme = "light" | "dark";
 
-const syntheticExecutionResult: ExecutionResult = {
-  execution_id: "SYN-20250314-001",
-  status: "completed",
-  method: "edgeR quasi-likelihood",
-  comparison: "Group_B",
-  reference: "Group_A",
-  design: "~ Technical_Batch + condition",
-  sample_count: 120,
-  feature_count: 12000,
-  retained_feature_count: 8421,
-  input_hashes: {
-    counts_sha256: "synthetic-8fb2d91c",
-    metadata_sha256: "synthetic-42ae71d0",
-  },
-  output_hash: "synthetic-51ac82b7",
-  software_versions: { R: "4.4.x", edgeR: "4.4.x" },
-  warnings: ["Demonstration result only; no biological or clinical interpretation is intended."],
-  generated_at: "2025-03-14T10:18:42.000Z",
-  results: [
-    { feature_id: "Feature_001", log2_fold_change: 1.284, statistic: 5.921, p_value: 0.000004, adjusted_p_value: 0.0032 },
-    { feature_id: "Feature_002", log2_fold_change: -1.071, statistic: -5.104, p_value: 0.000018, adjusted_p_value: 0.0076 },
-    { feature_id: "Feature_003", log2_fold_change: 0.893, statistic: 4.667, p_value: 0.000041, adjusted_p_value: 0.0115 },
-    { feature_id: "Feature_004", log2_fold_change: -0.744, statistic: -4.201, p_value: 0.000093, adjusted_p_value: 0.0194 },
-    { feature_id: "Feature_005", log2_fold_change: 0.619, statistic: 3.884, p_value: 0.000212, adjusted_p_value: 0.0311 },
-    { feature_id: "Feature_006", log2_fold_change: -0.481, statistic: -3.226, p_value: 0.00128, adjusted_p_value: 0.084 },
-  ],
-};
-
 const nav: Array<{ view: View; label: string; glyph: string; group?: string; count?: number }> = [
-  { view: "melanoma", label: "Melanoma TME case", glyph: "◎", group: "Start" },
+  { view: "overview", label: "Overview", glyph: "⌂", group: "Start" },
   { view: "how", label: "How it works", glyph: "?" },
-  { view: "overview", label: "Overview", glyph: "⌂" },
+  { view: "example", label: "Example", glyph: "◎" },
   { view: "projects", label: "Projects", glyph: "□" },
   { view: "analysis", label: "Analysis plan", glyph: "⌁", group: "Workflow" },
   { view: "execution", label: "Run analysis", glyph: "▶" },
+  { view: "controlled", label: "Real-data runner", glyph: "↗" },
   { view: "trust", label: "Review result", glyph: "◇", group: "Evidence" },
   { view: "claims", label: "Claims", glyph: "≡", count: 4 },
   { view: "methods", label: "Method library", glyph: "◫" },
@@ -62,12 +36,13 @@ const nav: Array<{ view: View; label: string; glyph: string; group?: string; cou
 ];
 
 const viewTitle: Record<View, string> = {
-  melanoma: "Synthetic melanoma TME case",
-  how: "How it works",
   overview: "Overview",
+  how: "How it works",
+  example: "Melanoma worked example",
   projects: "Projects",
   analysis: "Analysis plan",
-  execution: "Controlled execution",
+  execution: "Synthetic analysis execution",
+  controlled: "Controlled real-data execution",
   trust: "Result review",
   claims: "Claim ledger",
   methods: "Method library",
@@ -75,7 +50,7 @@ const viewTitle: Record<View, string> = {
 };
 
 const recommendedWording =
-  "Exposure_A and Clinical_Score are associated with a similar molecular state. The current analysis does not establish whether Exposure_A explains the Clinical_Score association.";
+  "In this synthetic melanoma cohort, the adjusted feature-level analysis identifies a response-associated T-cell and interferon pattern. This does not establish causation, treatment benefit, immune-cell abundance, or a validated biomarker.";
 
 function Badge({ children, tone = "green" }: { children: React.ReactNode; tone?: "green" | "amber" | "gray" | "red" | "blue" }) {
   return <span className={`badge ${tone}`}>{children}</span>;
@@ -128,7 +103,7 @@ function AddMethodCardModal({ onClose, onSave }: { onClose: () => void; onSave: 
 function Sidebar({ active, hasResults, theme, onNavigate, onPrivacy, onToggleTheme }: { active: View; hasResults: boolean; theme: Theme; onNavigate: (view: View) => void; onPrivacy: () => void; onToggleTheme: () => void }) {
   return (
     <aside className="sidebar">
-      <button className="brand" onClick={() => onNavigate("melanoma")} aria-label="BioTrust AI home">
+      <button className="brand" onClick={() => onNavigate("overview")} aria-label="BioTrust AI home">
         <span className="brand-mark" aria-hidden="true"><span className="trail-segment first" /><span className="trail-segment second" /><span className="trail-node first" /><span className="trail-node second" /><span className="trail-node third" /></span>
         <span>BioTrust <i>AI</i></span>
       </button>
@@ -178,7 +153,7 @@ function OverviewView({ navigate, openPrivacy, hasResults }: { navigate: (view: 
     <div className="view overview-view">
       <section className="welcome-row">
         <div><span className="page-kicker">Research workspace</span><h1>Evidence before confidence.</h1><p>Trace every scientific decision from question to claim—without exposing raw research data to external AI.</p></div>
-        <button className="primary-button" onClick={() => navigate(hasResults ? "analysis" : "execution")}>{hasResults ? "Create analysis plan" : "Run synthetic demonstration"} <span>→</span></button>
+        <button className="primary-button" onClick={() => navigate("analysis")}>{hasResults ? "Create a new analysis plan" : "Choose analyses and methods"} <span>→</span></button>
       </section>
       <button className="mode-banner" onClick={openPrivacy}>
         <span className="mode-icon">●</span><span><strong>NO_EXTERNAL_AI_MODE is active</strong><small>All reasoning is deterministic and local. No payload can leave the computation boundary.</small></span><span className="mode-link">Inspect policy →</span>
@@ -188,7 +163,7 @@ function OverviewView({ navigate, openPrivacy, hasResults }: { navigate: (view: 
       </section>
       <div className="overview-grid">
         <section className="panel workflow-panel">
-          <div className="section-head"><div><span className="panel-icon">⌁</span><div><h2>Current analysis workflow</h2><p>{hasResults ? "Analysis 01 · Exposure_A association" : "Synthetic demonstration · waiting to run"}</p></div></div><Badge tone={hasResults ? "green" : "gray"}>{hasResults ? "RUN COMPLETE" : "READY TO RUN"}</Badge></div>
+          <div className="section-head"><div><span className="panel-icon">⌁</span><div><h2>Current analysis workflow</h2><p>{hasResults ? "Melanoma TME · researcher-selected plan" : "Synthetic melanoma · waiting for a plan"}</p></div></div><Badge tone={hasResults ? "green" : "gray"}>{hasResults ? "RUN COMPLETE" : "PLAN REQUIRED"}</Badge></div>
           <div className="workflow-track">
             {(hasResults ? [
               ["1", "Question defined", "Researcher approved"],
@@ -196,13 +171,13 @@ function OverviewView({ navigate, openPrivacy, hasResults }: { navigate: (view: 
               ["3", "Analysis run", "Hashes recorded"],
               ["4", "Claims reviewed", "1 caveat attached"],
             ] : [
-              ["1", "Fixture prepared", "Synthetic data only"],
-              ["2", "Method selected", "edgeR quasi-likelihood"],
-              ["3", "Run pending", "Start from Run analysis"],
+              ["1", "Example available", "180 synthetic melanoma tumors"],
+              ["2", "Choices open", "Select analyses and methods"],
+              ["3", "Run pending", "Confirm Analysis plan first"],
               ["4", "Results hidden", "Revealed after execution"],
             ]).map(([n, title, meta], index) => <div className={`workflow-step ${!hasResults ? "pending" : ""}`} key={n}><span className="step-dot">{hasResults && index < 3 ? "✓" : n}</span><div><strong>{title}</strong><small>{meta}</small></div>{index < 3 && <i />}</div>)}
           </div>
-          <button className="text-button" onClick={() => navigate(hasResults ? "trust" : "execution")}>{hasResults ? "Review result evidence" : "Run on synthetic data"} <span>→</span></button>
+          <button className="text-button" onClick={() => navigate(hasResults ? "trust" : "analysis")}>{hasResults ? "Review result evidence" : "Choose analyses and methods"} <span>→</span></button>
         </section>
         <section className="panel recent-panel">
           <div className="section-head"><div><span className="panel-icon">≡</span><div><h2>Recent claims</h2><p>Structured scientific statements</p></div></div><button className="quiet-button" onClick={() => navigate("claims")}>View all</button></div>
@@ -221,54 +196,18 @@ function ProjectsView({ navigate, hasResults }: { navigate: (view: View) => void
     <div className="view">
       <div className="page-head"><div><span className="page-kicker">Workspace</span><h1>Projects</h1><p>Local research workspaces with explicit privacy and provenance controls.</p></div><button className="primary-button" disabled title="Project creation is disabled in the synthetic demo">New project <span>＋</span></button></div>
       <section className="project-card">
-        <div className="project-main"><div className="project-monogram">ST</div><div><span className="project-title-row"><h2>Synthetic transcriptomic association study</h2><Badge>SYNTHETIC</Badge></span><p>Demonstration workspace for auditable transcriptomic analysis. All values are procedurally generated.</p><div className="project-meta"><span>1 dataset</span><i>·</i><span>{hasResults ? "1 completed analysis" : "0 completed analyses"}</span><i>·</i><span>{hasResults ? "4 generated claims" : "0 generated claims"}</span><i>·</i><span>{hasResults ? "Run completed this session" : "Ready to run"}</span></div></div></div>
-        <div className="project-actions"><Badge tone="gray">LOCAL COMPUTE</Badge><button className="secondary-button" onClick={() => navigate("overview")}>Open project <span>→</span></button></div>
+        <div className="project-main"><div className="project-monogram">MT</div><div><span className="project-title-row"><h2>Synthetic melanoma TME study</h2><Badge>SYNTHETIC</Badge></span><p>Researcher-configurable workspace for method selection, comparison, sensitivity analysis, neural integration, and auditable interpretation.</p><div className="project-meta"><span>1 dataset</span><i>·</i><span>{hasResults ? "1 completed plan" : "0 completed plans"}</span><i>·</i><span>{hasResults ? "4 generated claims" : "0 generated claims"}</span><i>·</i><span>{hasResults ? "Run completed this session" : "Plan not yet confirmed"}</span></div></div></div>
+        <div className="project-actions"><Badge tone="gray">BROWSER COMPUTE</Badge><button className="secondary-button" onClick={() => navigate("analysis")}>Open analysis plan <span>→</span></button></div>
       </section>
       <div className="two-columns">
-        <section className="panel dataset-panel"><div className="section-head"><div><span className="panel-icon">□</span><div><h2>Dataset registry</h2><p>Hash-addressed local inputs</p></div></div><Badge tone="green">VERIFIED</Badge></div><div className="dataset-row"><div className="dataset-file">CSV</div><div><strong>Synthetic_Cohort</strong><small>RNA-seq counts + sample metadata</small></div><div><span>120 samples</span><small>12,000 features</small></div><div><span>sha256</span><small>8fb2…d91c</small></div></div><div className="dataset-note"><span>✓</span><p><strong>Confidentiality-safe fixture</strong>Generated from random synthetic distributions with fixed seed 20250314.</p></div></section>
+        <section className="panel dataset-panel"><div className="section-head"><div><span className="panel-icon">□</span><div><h2>Dataset registry</h2><p>Hash-addressed local inputs</p></div></div><Badge tone="green">VERIFIED</Badge></div><div className="dataset-row"><div className="dataset-file">CSV</div><div><strong>SYN-MEL-20260825</strong><small>Melanoma RNA-seq counts + sample metadata</small></div><div><span>180 samples</span><small>1,200 features</small></div><div><span>seed</span><small>20260825</small></div></div><div className="dataset-note"><span>✓</span><p><strong>Confidentiality-safe fixture</strong>All tumors, expression counts, covariates, response labels, and outcomes are synthetic.</p></div></section>
         <section className="panel boundary-mini"><div className="section-head"><div><span className="panel-icon">◉</span><div><h2>Data boundary</h2><p>Current project policy</p></div></div></div><div className="boundary-flow"><div><Badge tone="red">CONFIDENTIAL SIDE</Badge><strong>Raw inputs</strong><small>Local computation only</small></div><span>→</span><div><Badge>AI-SAFE SIDE</Badge><strong>Sanitized summaries</strong><small>Explicit allowlist only</small></div></div><p className="fine-print">The current mode blocks all external AI communication, including allowed summaries.</p></section>
       </div>
     </div>
   );
 }
 
-function AnalysisView({ onToast }: { onToast: (message: string) => void }) {
-  const [question, setQuestion] = useState("Within Tissue_A, is Exposure_A associated with a reproducible expression program after adjustment for Technical_Batch, and is that program concordant with the separate Clinical_Score association without claiming causation, mediation, or cell abundance?");
-  const [enabledBranches, setEnabledBranches] = useState(["P1", "S1", "C1", "G1", "V1"]);
-  const [confirmed, setConfirmed] = useState(false);
-  const branches = [
-    ["P1", "Primary", "Exposure_A association", "edgeR quasi-likelihood", "~ Technical_Batch + Exposure_A", "Association only"],
-    ["S1", "Sensitivity", "Alternative count model", "DESeq2 Wald", "Same population and contrast as P1", "Robustness, not replication"],
-    ["C1", "Integration", "Clinical_Score concordance", "Spearman correlation", "Signed P1 vs Clinical_Score statistics", "Shared pattern, not mediation"],
-    ["G1", "Interpretation", "Cell_State_A gene-set shift", "cameraPR", "Pre-registered set and gene universe", "Enrichment, not abundance"],
-    ["V1", "Validation", "Held-out molecular score", "Repeated 5-fold CV", "All learned steps inside folds", "Internal, not external validation"],
-  ];
-  const toggleBranch = (id: string) => {
-    if (id === "P1") return;
-    setEnabledBranches((current) => current.includes(id) ? current.filter((branch) => branch !== id) : [...current, id]);
-    setConfirmed(false);
-  };
-  return (
-    <div className="view protocol-plan-view">
-      <div className="page-head"><div><span className="page-kicker">Protocol EX-A01 · version 1.0</span><h1>Analysis protocol</h1><p>Decompose the research objective into linked estimands, sensitivity analyses, validation, and explicit claim boundaries before execution.</p></div><Badge tone={confirmed ? "green" : "amber"}>{confirmed ? "PROTOCOL LOCKED" : "DESIGN REVIEW"}</Badge></div>
-      <div className="protocol-plan-layout">
-        <section className="protocol-plan-main">
-          <div className="protocol-objective"><span>01 / RESEARCH OBJECTIVE</span><label htmlFor="protocol-question">Complex scientific question</label><textarea id="protocol-question" value={question} onChange={(event) => { setQuestion(event.target.value); setConfirmed(false); }} /><dl><div><dt>Population</dt><dd>Tissue_A</dd></div><div><dt>Exposure</dt><dd>Exposure_A</dd></div><div><dt>Outcome</dt><dd>Genome-wide expression</dd></div><div><dt>Adjustment</dt><dd>Technical_Batch</dd></div></dl></div>
-          <div className="protocol-branch-builder"><div className="protocol-builder-head"><div><span>02 / REGISTERED BRANCHES</span><h2>Linked analysis program</h2><p>Keep P1 authoritative. Optional branches may challenge or narrow the conclusion; they cannot redefine the primary estimand.</p></div><strong>{enabledBranches.length} ACTIVE</strong></div>{branches.map(([id, role, title, method, specification, ceiling]) => { const enabled = enabledBranches.includes(id); return <article className={enabled ? "enabled" : ""} key={id}><button type="button" onClick={() => toggleBranch(id)} aria-pressed={enabled} aria-label={`${enabled ? "Disable" : "Enable"} ${id}`}><span>{enabled ? "✓" : "+"}</span></button><div><b>{id}</b><small>{role}</small></div><div><h3>{title}</h3><strong>{method}</strong><code>{specification}</code></div><div><span>CLAIM CEILING</span><p>{ceiling}</p></div></article>})}</div>
-          <div className="protocol-analysis-contract"><span>03 / ANALYSIS CONTRACT</span><div><article><strong>Primary test family</strong><p>All retained genome-wide features in P1; Benjamini–Hochberg FDR is applied once to the declared family.</p></article><article><strong>Robustness reporting</strong><p>Report sign and rank concordance, influential features, material reversals, and specification-dependent conclusions.</p></article><article><strong>Interpretation boundary</strong><p>Association, concordance, gene-set shift, and internal prediction remain separate evidence classes.</p></article><article><strong>Required provenance</strong><p>Question, branch versions, inputs, formulas, parameters, software, seeds, warnings, and output hashes.</p></article></div></div>
-        </section>
-        <aside className="protocol-plan-aside">
-          <section><span>LOCKED SPECIFICATION</span><h2>Primary branch P1</h2><dl><div><dt>Dataset</dt><dd>Synthetic_Cohort</dd></div><div><dt>Population</dt><dd>Tissue_A</dd></div><div><dt>Method</dt><dd>edgeR QL</dd></div><div><dt>Design</dt><dd><code>~ Technical_Batch + Exposure_A</code></dd></div><div><dt>Contrast</dt><dd>Group_B vs Group_A</dd></div><div><dt>Filtering</dt><dd>filterByExpr</dd></div><div><dt>Normalization</dt><dd>TMM</dd></div><div><dt>Multiplicity</dt><dd>BH FDR</dd></div></dl></section>
-          <section className="protocol-review-gates"><span>PRE-RUN REVIEW</span><h2>Blocking checks</h2>{["Contrast identifiable after adjustment", "Replicated groups and exact sample matching", "Method matches raw count input", "Test families declared before results", "Claim ceilings accepted for every branch"].map((check) => <p key={check}><i>○</i>{check}</p>)}</section>
-          <div className="plan-warning"><span>!</span><p><strong>Confirmation is a protocol event</strong>Changing the question or any branch invalidates this confirmation and creates a new version.</p></div>
-          <button className="primary-button full" onClick={() => { setConfirmed(true); onToast("Protocol EX-A01 confirmed and locked"); }}>Confirm protocol <span>✓</span></button>
-        </aside>
-      </div>
-    </div>
-  );
-}
-
-function ExecutionView({ onToast, syntheticResult, onSyntheticResult }: { onToast: (message: string) => void; syntheticResult: ExecutionResult | null; onSyntheticResult: (result: ExecutionResult) => void }) {
+function ExecutionView({ onToast }: { onToast: (message: string) => void }) {
   const [runtime, setRuntime] = useState<{ state: "checking" | "ready" | "unavailable"; apiBase: string; location: "local" | "online" | "none" }>({ state: "checking", apiBase: "", location: "none" });
   const [countsFile, setCountsFile] = useState<File | null>(null);
   const [metadataFile, setMetadataFile] = useState<File | null>(null);
@@ -280,7 +219,6 @@ function ExecutionView({ onToast, syntheticResult, onSyntheticResult }: { onToas
   const [covariates, setCovariates] = useState("Technical_Batch");
   const [planConfirmed, setPlanConfirmed] = useState(false);
   const [running, setRunning] = useState(false);
-  const [demoRunning, setDemoRunning] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<ExecutionResult | null>(null);
   useEffect(() => {
@@ -345,17 +283,8 @@ function ExecutionView({ onToast, syntheticResult, onSyntheticResult }: { onToas
     }
   };
   const formatNumber = (value: number | null) => value === null ? "NA" : Math.abs(value) < .001 && value !== 0 ? value.toExponential(2) : value.toFixed(3);
-  const runSynthetic = () => {
-    setDemoRunning(true);
-    setError("");
-    window.setTimeout(() => {
-      onSyntheticResult(syntheticExecutionResult);
-      setDemoRunning(false);
-      onToast("Synthetic analysis completed; demonstration results are now visible");
-    }, 750);
-  };
-  const visibleResult = result ?? syntheticResult;
-  const resultIsSynthetic = visibleResult?.execution_id.startsWith("SYN-") ?? false;
+  const visibleResult = result;
+  const resultIsSynthetic = false;
   const selectedMethodName = method === "deseq2_wald" ? "DESeq2 Wald test" : "edgeR quasi-likelihood";
   const selectedCovariates = covariates.split(",").map((item) => item.trim()).filter(Boolean);
   const downloadPdf = async (target: ExecutionResult) => {
@@ -375,13 +304,12 @@ function ExecutionView({ onToast, syntheticResult, onSyntheticResult }: { onToas
   const runProgress = visibleResult ? 4 : planConfirmed ? 2 : 1;
   return (
     <div className="view execution-view">
-      <div className="page-head"><div><span className="page-kicker">Guided, controlled computation</span><h1>Run a controlled analysis you can explain.</h1><p>Follow one visible path from the research question to a downloadable scientific record. Every decision, check, result, and limitation stays reviewable.</p></div><Badge tone={runtime.state === "ready" ? "green" : runtime.state === "checking" ? "blue" : "gray"}>{runtime.state === "checking" ? "CHECKING RUNNER" : runtime.state === "ready" ? `${runtime.location.toUpperCase()} RUNNER READY` : "DEMO MODE"}</Badge></div>
+      <div className="page-head"><div><span className="page-kicker">Controlled R computation</span><h1>Run edgeR or DESeq2 on an authorized real dataset.</h1><p>This separate runner is for count-native publication analysis. The browser melanoma example and its selectable analyses live in Analysis plan and Run analysis.</p></div><Badge tone={runtime.state === "ready" ? "green" : runtime.state === "checking" ? "blue" : "gray"}>{runtime.state === "checking" ? "CHECKING RUNNER" : runtime.state === "ready" ? `${runtime.location.toUpperCase()} RUNNER READY` : "RUNNER NOT CONNECTED"}</Badge></div>
       <section className="run-progress" aria-label="Current analysis progress">
         {[["1", "Define", "Question and inputs"], ["2", "Confirm", "Exact analysis plan"], ["3", "Run", "Controlled execution"], ["4", "Review", "Results and downloads"]].map(([number, title, detail], index) => <div className={index + 1 <= runProgress ? "active" : ""} key={number}><span>{index + 1 < runProgress ? "✓" : number}</span><p><strong>{title}</strong><small>{detail}</small></p></div>)}
       </section>
-      {runtime.state === "unavailable" && <section className="hosted-execution-notice"><span>⌂</span><div><strong>The public demonstration works online; the secure real-data runner is not connected yet.</strong><p>You can run the synthetic workflow and download its PDF now. Real files stay disabled until an authenticated, isolated computation service is deployed. For local real-data analysis, run <code>docker compose up --build</code>.</p></div><a href="https://github.com/Hasnat-HN/BioTrust-AI" target="_blank" rel="noreferrer">Open setup guide <span>↗</span></a></section>}
+      {runtime.state === "unavailable" && <section className="hosted-execution-notice"><span>⌂</span><div><strong>The secure real-data runner is not connected to this public page.</strong><p>The selectable synthetic melanoma workflow still works online under Analysis plan. For authorized real-data analysis, run the controlled service locally with <code>docker compose up --build</code> or connect an authenticated isolated runner.</p></div><a href="https://github.com/Hasnat-HN/BioTrust-AI" target="_blank" rel="noreferrer">Open setup guide <span>↗</span></a></section>}
       {runtime.state === "ready" && runtime.location === "online" && <section className="online-execution-notice"><span>✓</span><div><strong>Controlled online runner connected</strong><p>Only upload data you are authorized to process. The runner validates inputs, uses temporary storage, and returns a hashed record.</p></div></section>}
-      <section className="synthetic-run-card"><span className="synthetic-run-mark">◇</span><div><Badge tone="blue">SAFE DEMONSTRATION</Badge><h2>Run the synthetic analysis</h2><p>No results are preloaded. This runs a fixed demonstration fixture and reveals its clearly labeled output, claims, and provenance record.</p></div><button className="primary-button" onClick={runSynthetic} disabled={demoRunning}>{demoRunning ? "Running synthetic fixture…" : syntheticResult ? "Run synthetic data again" : "Run on synthetic data"} <span>{demoRunning ? "◌" : "▶"}</span></button></section>
       <div className="execution-layout">
         <form className="panel execution-form" onSubmit={submit}>
           <div className="section-head"><div><span className="panel-icon">▶</span><div><h2>Real-data analysis</h2><p>{runtime.location === "online" ? "Files are sent only to the configured controlled runner" : "Files remain inside the temporary local runner"}</p></div></div><Badge tone="blue">ALLOWLISTED</Badge></div>
@@ -429,7 +357,7 @@ function TrustView({ selected, setSelected, onRules, onToast }: { selected: Clai
         <section className="panel review-panel"><div className="panel-heading"><div><span className="panel-icon warning">!</span><h2>Adversarial review</h2></div><Badge tone="amber">CAVEATS</Badge></div><p className="review-intro">The result is statistically supported, but the strongest interpretation remains limited by unresolved confounding.</p><div className="finding"><span>HIGH</span><div><strong>{selected.warning ?? "Interpretation requires conservative wording"}</strong><p>The evidence supports an association within this synthetic dataset, not a causal or mechanistic conclusion.</p></div></div><div className="finding muted"><span>CAUTION</span><div><strong>No external dataset replication</strong><p>The pattern has only been evaluated within the synthetic study.</p></div></div><button className="text-button" onClick={() => onToast("Full reviewer record is attached to the audit export")}>Open full review <span>→</span></button></section>
       </div>
       <section className="panel wording-panel"><div className="wording-head"><div><span className="panel-icon teal">✓</span><h2>Recommended scientific wording</h2></div><Badge>RULE-CHECKED</Badge></div><p>“{selected.id === "CLM-004" ? recommendedWording : selected.text}”</p><div className="wording-foot"><span>Prevents association → causation overreach</span><button onClick={async () => { await navigator.clipboard?.writeText(selected.id === "CLM-004" ? recommendedWording : selected.text); onToast("Scientific wording copied"); }}>Copy wording</button></div></section>
-      <section className="trust-details-grid"><article><span>01</span><strong>What the data show</strong><p>Signed gene-level statistics and gene-set shifts were produced by executed code from the synthetic dataset.</p></article><article><span>02</span><strong>What the method does not show</strong><p>Neither limma-voom nor cameraPR establishes causality, mechanism, temporal progression, or cell abundance.</p></article><article><span>03</span><strong>What would strengthen this?</strong><p>Adjust the Clinical_Score model for Exposure_A, test sensitivity to batch, and reproduce the pattern in an independent dataset.</p></article></section>
+      <section className="trust-details-grid"><article><span>01</span><strong>What the data show</strong><p>The executed, researcher-selected browser methods produced feature effects, program summaries, sensitivity results, or neural prediction only when those modules were chosen.</p></article><article><span>02</span><strong>What the methods do not show</strong><p>Agreement across browser methods does not establish causality, mechanism, treatment benefit, cell abundance, or external replication.</p></article><article><span>03</span><strong>What would strengthen this?</strong><p>Run edgeR or DESeq2 in the controlled R service, inspect diagnostics, then reproduce the locked analysis in an independent melanoma cohort.</p></article></section>
     </div>
   );
 }
@@ -443,7 +371,7 @@ function ClaimsView({ selected, setSelected }: { selected: Claim; setSelected: (
       <div className="filter-tabs">{["ALL", "DATA", "INFERENCE", "HYPOTHESIS"].map((item) => <button className={filter === item ? "active" : ""} onClick={() => setFilter(item)} key={item}>{item === "ALL" ? "All claims" : item}<span>{item === "ALL" ? claims.length : claims.filter((claim) => claim.type === item).length}</span></button>)}</div>
       <div className="ledger-layout">
         <section className="ledger-table panel"><div className="ledger-head"><span>Claim</span><span>Classification</span><span>Status</span></div>{shown.map((claim) => <button className={`ledger-row ${selected.id === claim.id ? "selected" : ""}`} onClick={() => setSelected(claim)} key={claim.id}><div><small>{claim.id}</small><strong>{claim.text}</strong><p>{claim.source}</p></div><div><Badge tone={claim.type === "HYPOTHESIS" ? "amber" : claim.type === "DATA" ? "blue" : "green"}>{claim.type}</Badge></div><div><span className={`status-dot ${claim.status === "HYPOTHESIS" ? "amber" : ""}`} />{claim.status.replaceAll("_", " ")}</div></button>)}</section>
-        <aside className="panel claim-detail"><div className="section-head"><div><span className="panel-icon">≡</span><div><h2>{selected.id}</h2><p>Claim inspection</p></div></div><Badge tone={selected.type === "HYPOTHESIS" ? "amber" : selected.type === "DATA" ? "blue" : "green"}>{selected.type}</Badge></div><blockquote>“{selected.text}”</blockquote><div className="detail-block"><strong>Source</strong><p>{selected.source}</p></div><div className="detail-block caution"><strong>Interpretation warning</strong><p>{selected.warning}</p></div><div className="detail-block"><strong>Provenance path</strong><p>Claim → Result set 01 → cameraPR → Analysis plan AP-001 → Synthetic_Cohort</p></div><button className="secondary-button full">Open evidence view <span>→</span></button></aside>
+        <aside className="panel claim-detail"><div className="section-head"><div><span className="panel-icon">≡</span><div><h2>{selected.id}</h2><p>Claim inspection</p></div></div><Badge tone={selected.type === "HYPOTHESIS" ? "amber" : selected.type === "DATA" ? "blue" : "green"}>{selected.type}</Badge></div><blockquote>“{selected.text}”</blockquote><div className="detail-block"><strong>Source</strong><p>{selected.source}</p></div><div className="detail-block caution"><strong>Interpretation warning</strong><p>{selected.warning}</p></div><div className="detail-block"><strong>Provenance path</strong><p>Claim → selected output → researcher plan → SYN-MEL-20260825</p></div><button className="secondary-button full">Open evidence view <span>→</span></button></aside>
       </div>
     </div>
   );
@@ -470,8 +398,8 @@ function ProvenanceView({ onExport }: { onExport: () => void }) {
     <div className="view">
       <div className="page-head"><div><span className="page-kicker">Append-only record</span><h1>Provenance timeline</h1><p>Where did this result come from? Every step resolves to code, inputs, and outputs.</p></div><button className="primary-button" onClick={onExport}>Export provenance JSON <span>↓</span></button></div>
       <div className="provenance-layout">
-        <section className="panel timeline-panel"><div className="run-summary"><div><Badge>RUN COMPLETE</Badge><h2>Analysis 01 · Exposure_A association</h2><p>Run ID ANR-20250314-001 · deterministic seed 20250314</p></div><div><small>Duration</small><strong>00:03:28</strong></div></div><div className="timeline">{provenanceEvents.map((event, index) => <article key={event.type}><span className="timeline-dot">{index === provenanceEvents.length - 1 ? "●" : "✓"}</span><time>{event.time}</time><div><Badge tone={event.type.includes("CLAIM") ? "amber" : event.type.includes("MODEL") ? "blue" : "gray"}>{event.type}</Badge><h3>{event.title}</h3><p>{event.detail}</p><small>{event.actor}</small></div></article>)}</div></section>
-        <aside className="provenance-aside"><section className="panel hash-card"><div className="section-head"><div><span className="panel-icon">#</span><h2>Reproducibility record</h2></div><Badge>COMPLETE</Badge></div><dl><div><dt>Git commit</dt><dd><code>demo-a34f29c</code></dd></div><div><dt>Code hash</dt><dd><code>7d4a…ef82</code></dd></div><div><dt>Input hash</dt><dd><code>8fb2…d91c</code></dd></div><div><dt>Output hash</dt><dd><code>51ac…82b7</code></dd></div><div><dt>Python</dt><dd>3.12.x</dd></div><div><dt>R</dt><dd>4.4.x</dd></div><div><dt>Random seed</dt><dd>20250314</dd></div></dl></section><section className="panel source-chain"><h2>Trace selected claim</h2><div><span>Claim</span><strong>CLM-004</strong></div><i>↓</i><div><span>Result</span><strong>Gene-set comparison</strong></div><i>↓</i><div><span>Method</span><strong>cameraPR</strong></div><i>↓</i><div><span>Analysis</span><strong>ANR-001 + ANR-002</strong></div><i>↓</i><div><span>Dataset</span><strong>Synthetic_Cohort</strong></div></section></aside>
+        <section className="panel timeline-panel"><div className="run-summary"><div><Badge>RUN COMPLETE</Badge><h2>Melanoma TME · researcher-selected analysis</h2><p>Run ID SYN-MEL-20260825 · deterministic seed 20260825</p></div><div><small>Runtime</small><strong>BROWSER</strong></div></div><div className="timeline">{provenanceEvents.map((event, index) => <article key={event.type}><span className="timeline-dot">{index === provenanceEvents.length - 1 ? "●" : "✓"}</span><time>{event.time}</time><div><Badge tone={event.type.includes("CLAIM") ? "amber" : event.type.includes("MODEL") ? "blue" : "gray"}>{event.type}</Badge><h3>{event.title}</h3><p>{event.detail}</p><small>{event.actor}</small></div></article>)}</div></section>
+        <aside className="provenance-aside"><section className="panel hash-card"><div className="section-head"><div><span className="panel-icon">#</span><h2>Reproducibility record</h2></div><Badge>COMPLETE</Badge></div><dl><div><dt>Dataset</dt><dd><code>SYN-MEL-20260825</code></dd></div><div><dt>Metadata hash</dt><dd><code>FNV-1a audit record</code></dd></div><div><dt>Counts hash</dt><dd><code>FNV-1a audit record</code></dd></div><div><dt>Results hash</dt><dd><code>FNV-1a audit record</code></dd></div><div><dt>Browser engine</dt><dd>TypeScript</dd></div><div><dt>Production boundary</dt><dd>Controlled R</dd></div><div><dt>Random seed</dt><dd>20260825</dd></div></dl></section><section className="panel source-chain"><h2>Trace selected claim</h2><div><span>Claim</span><strong>CLM-004</strong></div><i>↓</i><div><span>Result</span><strong>Selected DGE + TME summary</strong></div><i>↓</i><div><span>Methods</span><strong>Researcher-selected</strong></div><i>↓</i><div><span>Plan</span><strong>Confirmed melanoma plan</strong></div><i>↓</i><div><span>Dataset</span><strong>SYN-MEL-20260825</strong></div></section></aside>
       </div>
     </div>
   );
@@ -482,9 +410,11 @@ function ResultsGate({ navigate, destination }: { navigate: (view: View) => void
 }
 
 export default function BioTrustApp() {
-  const [view, setView] = useState<View>("melanoma");
+  const [view, setView] = useState<View>("overview");
   const [theme, setTheme] = useState<Theme>("dark");
   const [syntheticResult, setSyntheticResult] = useState<ExecutionResult | null>(null);
+  const [melanomaPlan, setMelanomaPlan] = useState<MelanomaWorkflowPlan>(defaultMelanomaPlan);
+  const [melanomaOutput, setMelanomaOutput] = useState<MelanomaWorkflowOutput | null>(null);
   const [selectedClaim, setSelectedClaim] = useState(claims[0]);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -519,19 +449,21 @@ export default function BioTrustApp() {
   const deleteMethod = (method: MethodCard) => { persistCustomMethods(catalog.filter((item) => item.origin === "CUSTOM" && item.slug !== method.slug)); setSelectedMethod(null); notify("Custom Method Card removed from this device"); };
   const exportMethodPack = () => { const blob = new Blob([JSON.stringify({ format: "biotrust-method-pack", version: 1, methods: catalog }, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "biotrust-method-pack.json"; anchor.click(); URL.revokeObjectURL(url); notify("Method pack exported"); };
   const importMethodPack = async (file: File) => { try { const parsed = JSON.parse(await file.text()); const incoming = (Array.isArray(parsed) ? parsed : parsed.methods) as MethodCard[]; if (!Array.isArray(incoming)) throw new Error("Invalid pack"); const valid = incoming.filter((method) => method?.name && method?.package && method?.fn && method?.question).map((method, index) => ({ ...method, slug: `custom-imported-${Date.now()}-${index}`, status: "REVIEW_REQUIRED" as const, origin: "CUSTOM" as const })); const merged = [...catalog.filter((item) => item.origin === "CUSTOM"), ...valid]; persistCustomMethods(merged); notify(`${valid.length} Method Cards imported for review`); } catch { notify("Method pack could not be imported"); } };
-  const audit = useMemo(() => ({ exported_at: new Date().toISOString(), project: "Synthetic transcriptomic association study", privacy_mode: "NO_EXTERNAL_AI_MODE", dataset: { id: "Synthetic_Cohort", sha256: "8fb2…d91c", synthetic: true }, execution: syntheticResult, claims: syntheticResult ? claims : [], provenance: syntheticResult ? provenanceEvents : [] }), [syntheticResult]);
+  const audit = useMemo(() => ({ exported_at: new Date().toISOString(), project: "Synthetic melanoma TME study", privacy_mode: "NO_EXTERNAL_AI_MODE", dataset: { id: "SYN-MEL-20260825", seed: 20260825, synthetic: true }, researcher_plan: melanomaPlan, execution: syntheticResult, claims: syntheticResult ? claims : [], provenance: syntheticResult ? provenanceEvents : [] }), [melanomaPlan, syntheticResult]);
   const exportAudit = () => { if (!syntheticResult) { notify("Run the synthetic analysis before exporting an audit"); return; } const blob = new Blob([JSON.stringify(audit, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "biotrust-audit-sanitized.json"; anchor.click(); URL.revokeObjectURL(url); notify("Sanitized audit export created"); };
+  const updateMelanomaPlan = (next: MelanomaWorkflowPlan) => { setMelanomaPlan(next); setMelanomaOutput(null); setSyntheticResult(null); };
   const navigate = (next: View) => { setView(next); setMobileNav(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
   return (
     <main className="app-shell">
       <div className={mobileNav ? "mobile-nav open" : "mobile-nav"}><Sidebar active={view} hasResults={Boolean(syntheticResult)} theme={theme} onNavigate={navigate} onPrivacy={() => setPrivacyOpen(true)} onToggleTheme={toggleTheme} /><button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" /></div>
       <section className="workspace"><Topbar view={view} canExport={Boolean(syntheticResult)} onExport={exportAudit} onMenu={() => setMobileNav(true)} />
-        {view === "melanoma" && <MelanomaCaseStudyView onToast={notify} onOpenRunner={() => navigate("execution")} />}
+        {view === "example" && <MelanomaCaseStudyView onToast={notify} onOpenRunner={() => navigate("analysis")} />}
         {view === "how" && <HowItWorksView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} hasResults={Boolean(syntheticResult)} />}
         {view === "overview" && <OverviewView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} hasResults={Boolean(syntheticResult)} />}
         {view === "projects" && <ProjectsView navigate={navigate} hasResults={Boolean(syntheticResult)} />}
-        {view === "analysis" && <AnalysisView onToast={notify} />}
-        {view === "execution" && <ExecutionView onToast={notify} syntheticResult={syntheticResult} onSyntheticResult={setSyntheticResult} />}
+        {view === "analysis" && <MelanomaAnalysisPlanView plan={melanomaPlan} onPlanChange={updateMelanomaPlan} onRun={() => navigate("execution")} onControlled={() => navigate("controlled")} onToast={notify} />}
+        {view === "execution" && <MelanomaExecutionView plan={melanomaPlan} output={melanomaOutput} onOutput={setMelanomaOutput} onComplete={setSyntheticResult} onEditPlan={() => navigate("analysis")} onControlled={() => navigate("controlled")} onToast={notify} />}
+        {view === "controlled" && <ExecutionView onToast={notify} />}
         {view === "trust" && (syntheticResult ? <TrustView selected={selectedClaim} setSelected={setSelectedClaim} onRules={() => setRulesOpen(true)} onToast={notify} /> : <ResultsGate navigate={navigate} destination="Result review" />)}
         {view === "claims" && (syntheticResult ? <ClaimsView selected={selectedClaim} setSelected={setSelectedClaim} /> : <ResultsGate navigate={navigate} destination="The claim ledger" />)}
         {view === "methods" && <MethodsView catalog={catalog} onSelect={setSelectedMethod} onAdd={() => setAddMethodOpen(true)} onImport={importMethodPack} onExport={exportMethodPack} />}

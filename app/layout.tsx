@@ -15,16 +15,16 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
   title: "BioTrust AI — Auditable Bioinformatics",
-  description: "Plan linked estimands, sensitivity analyses, validation, and claim boundaries before bioinformatics execution.",
+  description: "Choose bioinformatics analyses and methods, compare their results, and preserve an auditable evidence trail.",
   openGraph: {
     title: "BioTrust AI — Auditable Bioinformatics",
-    description: "Complex bioinformatics questions decomposed into auditable analysis protocols.",
+    description: "Researcher-controlled melanoma analysis with method comparison, sensitivity analysis, and traceable interpretation.",
     images: [{ url: "/og.png", width: 1672, height: 941, alt: "BioTrust AI evidence trail" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "BioTrust AI — Auditable Bioinformatics",
-    description: "Complex bioinformatics questions decomposed into auditable analysis protocols.",
+    description: "Researcher-controlled melanoma analysis with method comparison, sensitivity analysis, and traceable interpretation.",
     images: ["/og.png"],
   },
 };

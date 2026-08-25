@@ -45,11 +45,11 @@ export type MethodCard = {
 export const claims: Claim[] = [
   {
     id: "CLM-004",
-    text: "Exposure_A and Clinical_Score are associated with a similar molecular expression pattern.",
+    text: "The adjusted melanoma DGE model identifies a coherent synthetic T-cell and interferon response-associated pattern.",
     type: "INFERENCE",
     status: "SUPPORTED_WITH_LIMITATIONS",
-    source: "Comparison of Analysis 01 and Analysis 02",
-    warning: "Exposure_A was not included in the Clinical_Score model.",
+    source: "Researcher-selected DGE methods and TME program summary",
+    warning: "This is an association in one synthetic cohort; it is not a validated biomarker or treatment mechanism.",
     evidence: {
       Provenance: 2,
       "Statistical appropriateness": 2,
@@ -63,11 +63,11 @@ export const claims: Claim[] = [
   },
   {
     id: "CLM-003",
-    text: "Cell_State_C genes are collectively shifted upward with increasing Continuous_Trait.",
+    text: "Synthetic T-cell-inflamed and interferon-response features move coherently in the adjusted feature screen.",
     type: "DATA",
     status: "SUPPORTED",
-    source: "Analysis 03 · cameraPR result",
-    warning: "Gene-set enrichment does not establish measured cell abundance.",
+    source: "Selected TME program-summary module",
+    warning: "Program aggregation does not establish measured immune-cell abundance or a formal gene-set test.",
     evidence: {
       Provenance: 2,
       "Statistical appropriateness": 2,
@@ -81,11 +81,11 @@ export const claims: Claim[] = [
   },
   {
     id: "CLM-002",
-    text: "The Exposure_A molecular score reproduces the exposure in held-out synthetic participants.",
+    text: "The selected neural integration model predicts the synthetic response label under internal five-fold cross-validation.",
     type: "DATA",
     status: "SUPPORTED",
-    source: "Analysis 04 · repeated 5-fold cross-validation",
-    warning: "Predictive performance does not establish biological mechanism.",
+    source: "Researcher-selected neural integration module",
+    warning: "Internal predictive performance does not establish biological mechanism, external validity, or clinical utility.",
     evidence: {
       Provenance: 2,
       "Statistical appropriateness": 2,
@@ -99,11 +99,11 @@ export const claims: Claim[] = [
   },
   {
     id: "CLM-001",
-    text: "Exposure_A may contribute to the molecular association observed with Clinical_Score.",
+    text: "The synthetic response-associated TME pattern may motivate testing in an independent melanoma cohort.",
     type: "HYPOTHESIS",
     status: "HYPOTHESIS",
-    source: "Researcher-authored interpretation",
-    warning: "This explanation requires targeted confounder analysis and independent validation.",
+    source: "Researcher-authored next-step hypothesis",
+    warning: "This hypothesis requires a count-native analysis, locked external validation, and biological follow-up.",
     evidence: {
       Provenance: 2,
       "Statistical appropriateness": 1,
@@ -422,13 +422,14 @@ export const builtInMethods: MethodCard[] = methods.map((method) => ({
 }));
 
 export const provenanceEvents = [
-  { time: "09:42:16", type: "DATA_REGISTERED", title: "Synthetic_Cohort registered", detail: "Dataset hash sha256:8fb2…d91c", actor: "Researcher" },
-  { time: "09:44:03", type: "DATA_FILTERED", title: "Sample selection applied", detail: "Rule: Tissue == Tissue_A · 120 synthetic samples retained", actor: "Execution engine" },
-  { time: "09:44:06", type: "NORMALIZED", title: "TMM normalization completed", detail: "edgeR · normalization factors stored", actor: "Execution engine" },
-  { time: "09:44:09", type: "MODEL_FITTED", title: "limma-voom model fitted", detail: "~ Exposure_A + Age + Sex + Technical_Batch", actor: "Execution engine" },
-  { time: "09:44:10", type: "MULTIPLE_TESTING_APPLIED", title: "Benjamini–Hochberg FDR applied", detail: "Family: 12,000 retained synthetic features", actor: "Rule engine" },
-  { time: "09:45:22", type: "GENE_SET_TESTED", title: "Four predefined gene sets tested", detail: "cameraPR · full signed statistic universe", actor: "Execution engine" },
-  { time: "09:47:31", type: "CLAIM_CREATED", title: "Claim CLM-004 recorded", detail: "Classified as INFERENCE · caveat attached", actor: "Researcher" },
+  { time: "09:42:16", type: "DATA_REGISTERED", title: "Synthetic melanoma cohort registered", detail: "180 samples · 1,200 synthetic features · fixed seed 20260825", actor: "Researcher" },
+  { time: "09:43:02", type: "DATA_PROFILED", title: "Graphical dataset audit completed", detail: "Counts, libraries, purity, batches, stage, and biopsy site summarized", actor: "BioTrust profiler" },
+  { time: "09:44:03", type: "PLAN_CONFIRMED", title: "Researcher choices locked", detail: "Selected analysis modules, DGE methods, and purity threshold recorded", actor: "Researcher" },
+  { time: "09:44:06", type: "NORMALIZED", title: "Browser expression matrix prepared", detail: "log2 CPM · same matrix supplied to every selected browser DGE method", actor: "Execution engine" },
+  { time: "09:44:09", type: "MODELS_FITTED", title: "Researcher-selected analyses executed", detail: "Only confirmed modules and methods produced outputs", actor: "Execution engine" },
+  { time: "09:44:10", type: "MULTIPLE_TESTING_APPLIED", title: "Benjamini-Hochberg FDR applied", detail: "Family: 1,200 synthetic features per selected DGE method", actor: "Rule engine" },
+  { time: "09:45:22", type: "METHODS_COMPARED", title: "Selected DGE methods compared", detail: "Rank, sign, top-50, FDR overlap, and consensus retained separately", actor: "Comparison engine" },
+  { time: "09:47:31", type: "CLAIM_CREATED", title: "Claim CLM-004 recorded", detail: "Classified as INFERENCE · synthetic and external-validation boundaries attached", actor: "Researcher" },
 ];
 
 export const contextAllowed = [
