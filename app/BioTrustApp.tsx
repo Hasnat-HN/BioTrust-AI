@@ -12,7 +12,7 @@ import {
 } from "./data";
 import { buildDecisionTrail, type ReportExecutionResult } from "./decisionTrail";
 import HowItWorksView from "./HowItWorksView";
-import MelanomaCaseStudyView, { MelanomaAnalysisPlanView, MelanomaExecutionView, type MelanomaWorkflowOutput } from "./MelanomaCaseStudyView";
+import MelanomaCaseStudyView, { type MelanomaWorkflowOutput } from "./MelanomaCaseStudyView";
 import { defaultMelanomaPlan, type MelanomaWorkflowPlan } from "./melanomaWorkflow";
 
 type View = "overview" | "how" | "example" | "projects" | "analysis" | "execution" | "controlled" | "trust" | "claims" | "methods" | "provenance";
@@ -22,13 +22,9 @@ type ExecutionResult = ReportExecutionResult;
 type Theme = "light" | "dark";
 
 const nav: Array<{ view: View; label: string; glyph: string; group?: string; count?: number }> = [
-  { view: "overview", label: "Overview", glyph: "⌂", group: "Start" },
-  { view: "how", label: "How it works", glyph: "?" },
+  { view: "how", label: "How it works", glyph: "?", group: "Start" },
   { view: "example", label: "Example", glyph: "◎" },
-  { view: "projects", label: "Projects", glyph: "□" },
-  { view: "analysis", label: "Analysis plan", glyph: "⌁", group: "Workflow" },
-  { view: "execution", label: "Run analysis", glyph: "▶" },
-  { view: "controlled", label: "Real-data runner", glyph: "↗" },
+  { view: "controlled", label: "Controlled R runner", glyph: "↗", group: "Real data" },
   { view: "trust", label: "Review result", glyph: "◇", group: "Evidence" },
   { view: "claims", label: "Claims", glyph: "≡", count: 4 },
   { view: "methods", label: "Method library", glyph: "◫" },
@@ -38,7 +34,7 @@ const nav: Array<{ view: View; label: string; glyph: string; group?: string; cou
 const viewTitle: Record<View, string> = {
   overview: "Overview",
   how: "How it works",
-  example: "Melanoma worked example",
+  example: "Interactive analysis example",
   projects: "Projects",
   analysis: "Analysis plan",
   execution: "Synthetic analysis execution",
@@ -103,7 +99,7 @@ function AddMethodCardModal({ onClose, onSave }: { onClose: () => void; onSave: 
 function Sidebar({ active, hasResults, theme, onNavigate, onPrivacy, onToggleTheme }: { active: View; hasResults: boolean; theme: Theme; onNavigate: (view: View) => void; onPrivacy: () => void; onToggleTheme: () => void }) {
   return (
     <aside className="sidebar">
-      <button className="brand" onClick={() => onNavigate("overview")} aria-label="BioTrust AI home">
+      <button className="brand" onClick={() => onNavigate("how")} aria-label="BioTrust AI home">
         <span className="brand-mark" aria-hidden="true"><span className="trail-segment first" /><span className="trail-segment second" /><span className="trail-node first" /><span className="trail-node second" /><span className="trail-node third" /></span>
         <span>BioTrust <i>AI</i></span>
       </button>
@@ -304,11 +300,11 @@ function ExecutionView({ onToast }: { onToast: (message: string) => void }) {
   const runProgress = visibleResult ? 4 : planConfirmed ? 2 : 1;
   return (
     <div className="view execution-view">
-      <div className="page-head"><div><span className="page-kicker">Controlled R computation</span><h1>Run edgeR or DESeq2 on an authorized real dataset.</h1><p>This separate runner is for count-native publication analysis. The browser melanoma example and its selectable analyses live in Analysis plan and Run analysis.</p></div><Badge tone={runtime.state === "ready" ? "green" : runtime.state === "checking" ? "blue" : "gray"}>{runtime.state === "checking" ? "CHECKING RUNNER" : runtime.state === "ready" ? `${runtime.location.toUpperCase()} RUNNER READY` : "RUNNER NOT CONNECTED"}</Badge></div>
+      <div className="page-head"><div><span className="page-kicker">Controlled R computation</span><h1>Run edgeR or DESeq2 on an authorized real dataset.</h1><p>This separate runner is for count-native publication analysis. The public Example keeps its selectable plan, Run control, browser-R results, and interpretation together on one page.</p></div><Badge tone={runtime.state === "ready" ? "green" : runtime.state === "checking" ? "blue" : "gray"}>{runtime.state === "checking" ? "CHECKING RUNNER" : runtime.state === "ready" ? `${runtime.location.toUpperCase()} RUNNER READY` : "RUNNER NOT CONNECTED"}</Badge></div>
       <section className="run-progress" aria-label="Current analysis progress">
         {[["1", "Define", "Question and inputs"], ["2", "Confirm", "Exact analysis plan"], ["3", "Run", "Controlled execution"], ["4", "Review", "Results and downloads"]].map(([number, title, detail], index) => <div className={index + 1 <= runProgress ? "active" : ""} key={number}><span>{index + 1 < runProgress ? "✓" : number}</span><p><strong>{title}</strong><small>{detail}</small></p></div>)}
       </section>
-      {runtime.state === "unavailable" && <section className="hosted-execution-notice"><span>⌂</span><div><strong>The secure real-data runner is not connected to this public page.</strong><p>The selectable synthetic melanoma workflow still works online under Analysis plan. For authorized real-data analysis, run the controlled service locally with <code>docker compose up --build</code> or connect an authenticated isolated runner.</p></div><a href="https://github.com/Hasnat-HN/BioTrust-AI" target="_blank" rel="noreferrer">Open setup guide <span>↗</span></a></section>}
+      {runtime.state === "unavailable" && <section className="hosted-execution-notice"><span>⌂</span><div><strong>The secure real-data runner is not connected to this public page.</strong><p>The selectable synthetic melanoma workflow still works online in Example. For authorized real-data analysis, run the controlled service locally with <code>docker compose up --build</code> or connect an authenticated isolated runner.</p></div><a href="https://github.com/Hasnat-HN/BioTrust-AI" target="_blank" rel="noreferrer">Open setup guide <span>↗</span></a></section>}
       {runtime.state === "ready" && runtime.location === "online" && <section className="online-execution-notice"><span>✓</span><div><strong>Controlled online runner connected</strong><p>Only upload data you are authorized to process. The runner validates inputs, uses temporary storage, and returns a hashed record.</p></div></section>}
       <div className="execution-layout">
         <form className="panel execution-form" onSubmit={submit}>
@@ -406,11 +402,11 @@ function ProvenanceView({ onExport }: { onExport: () => void }) {
 }
 
 function ResultsGate({ navigate, destination }: { navigate: (view: View) => void; destination: string }) {
-  return <div className="view"><section className="results-gate"><span className="results-gate-mark">◇</span><span className="page-kicker">Results not generated</span><h1>{destination} will appear after a run.</h1><p>The public demonstration starts without preloaded synthetic outcomes. Go to Run analysis and explicitly execute the synthetic fixture to reveal this section.</p><button className="primary-button" onClick={() => navigate("execution")}>Go to Run analysis <span>→</span></button></section></div>;
+  return <div className="view"><section className="results-gate"><span className="results-gate-mark">◇</span><span className="page-kicker">Results not generated</span><h1>{destination} will appear after a run.</h1><p>The public demonstration starts without preloaded outcomes. Open Example, select the analyses and methods, confirm them, and press Run on that same page.</p><button className="primary-button" onClick={() => navigate("example")}>Open interactive Example <span>→</span></button></section></div>;
 }
 
 export default function BioTrustApp() {
-  const [view, setView] = useState<View>("overview");
+  const [view, setView] = useState<View>("how");
   const [theme, setTheme] = useState<Theme>("dark");
   const [syntheticResult, setSyntheticResult] = useState<ExecutionResult | null>(null);
   const [melanomaPlan, setMelanomaPlan] = useState<MelanomaWorkflowPlan>(defaultMelanomaPlan);
@@ -457,12 +453,10 @@ export default function BioTrustApp() {
     <main className="app-shell">
       <div className={mobileNav ? "mobile-nav open" : "mobile-nav"}><Sidebar active={view} hasResults={Boolean(syntheticResult)} theme={theme} onNavigate={navigate} onPrivacy={() => setPrivacyOpen(true)} onToggleTheme={toggleTheme} /><button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" /></div>
       <section className="workspace"><Topbar view={view} canExport={Boolean(syntheticResult)} onExport={exportAudit} onMenu={() => setMobileNav(true)} />
-        {view === "example" && <MelanomaCaseStudyView onToast={notify} onOpenRunner={() => navigate("analysis")} />}
+        {view === "example" && <MelanomaCaseStudyView plan={melanomaPlan} output={melanomaOutput} onPlanChange={updateMelanomaPlan} onOutput={setMelanomaOutput} onComplete={setSyntheticResult} onControlled={() => navigate("controlled")} onToast={notify} />}
         {view === "how" && <HowItWorksView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} hasResults={Boolean(syntheticResult)} />}
         {view === "overview" && <OverviewView navigate={navigate} openPrivacy={() => setPrivacyOpen(true)} hasResults={Boolean(syntheticResult)} />}
         {view === "projects" && <ProjectsView navigate={navigate} hasResults={Boolean(syntheticResult)} />}
-        {view === "analysis" && <MelanomaAnalysisPlanView plan={melanomaPlan} onPlanChange={updateMelanomaPlan} onRun={() => navigate("execution")} onControlled={() => navigate("controlled")} onToast={notify} />}
-        {view === "execution" && <MelanomaExecutionView plan={melanomaPlan} output={melanomaOutput} onOutput={setMelanomaOutput} onComplete={setSyntheticResult} onEditPlan={() => navigate("analysis")} onControlled={() => navigate("controlled")} onToast={notify} />}
         {view === "controlled" && <ExecutionView onToast={notify} />}
         {view === "trust" && (syntheticResult ? <TrustView selected={selectedClaim} setSelected={setSelectedClaim} onRules={() => setRulesOpen(true)} onToast={notify} /> : <ResultsGate navigate={navigate} destination="Result review" />)}
         {view === "claims" && (syntheticResult ? <ClaimsView selected={selectedClaim} setSelected={setSelectedClaim} /> : <ResultsGate navigate={navigate} destination="The claim ledger" />)}

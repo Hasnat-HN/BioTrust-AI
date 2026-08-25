@@ -14,18 +14,19 @@ The aim is simple: AI should help researchers reason through an analysis, not be
 
 The public application runs the complete synthetic workflow in the browser and produces downloadable PDF, CSV, and JSON records. Private dataset uploads remain disabled unless a separately secured computation service is connected. Run the project locally to execute real count matrices within the controlled Docker boundary.
 
-The worked Example asks which synthetic expression features and tumor-microenvironment programs are associated with synthetic PD-1 response in melanoma. The Example page explains the question and graphically profiles the cohort without running an analysis. The researcher then chooses the desired analysis modules and one or more methods in Analysis plan; Run analysis executes only that confirmed plan.
+The site always opens on **How it works**. The next page, **Example**, asks which synthetic expression features and tumor-microenvironment programs are associated with synthetic PD-1 response in melanoma. Dataset inspection, selectable analysis modules, JavaScript methods, genuine browser-R methods, AI guidance, confirmation, execution, interpretation, and downloads all stay together on that one page.
 
 ## What is implemented
 
 - Interactive Next.js/Vinext research workspace that ships with synthetic demonstration data and connects to the local controlled execution API for real datasets
 - Deterministic melanoma tumor-microenvironment case with 180 synthetic tumors, 1,200 generic expression features, and no real patient or gene data
 - Graphical pre-analysis profile of data type, dimensions, group sizes, library sizes, zero rate, tumor purity, batches, stage, biopsy site, and method-suitability checks
-- Researcher-selectable analysis modules for feature-level DGE, TME program summaries, tumor-purity sensitivity, and neural integration
+- Researcher-selectable analysis modules for JavaScript DGE, genuine R-package DGE, TME program summaries, tumor-purity sensitivity, and neural integration
 - Researcher-selectable adjusted log-CPM regression, Welch screening, and Wilcoxon rank-sum screening; one method can run alone and two or more automatically activate comparison
+- Real R 4.6 execution in the browser through webR, with selectable `stats` adjusted OLS, Welch, and Wilcoxon methods, package-version recording, complete 1,200-feature output, and R results CSV export
 - Pairwise effect-rank agreement, sign concordance, top-feature overlap, FDR overlap, consensus features, and a question-matched method recommendation
 - Multivariable score and feature models adjusting for age, recorded sex, disease stage, biopsy site, prior systemic therapy, tumor purity, and sequencing batch
-- Shared analysis-plan builder whose question, modules, DGE methods, comparison depth, and purity threshold directly control the synthetic execution
+- Analysis-plan builder embedded directly in Example whose question, modules, JavaScript methods, R methods, comparison depth, and purity threshold control the execution
 - Local AI method guide that explains suitability, limitations, covariate capability, evidence boundaries, and the consequences of the researcher's current choices
 - Result-review and adversarial-review surface
 - Evidence-synthesis engine that connects method agreement, disagreement, covariate capability, neural prediction, claim boundaries, and next analyses back to cited evidence IDs
@@ -53,7 +54,7 @@ docker compose up --build
 
 Open `http://localhost:3000`. Raw research data are not required by the synthetic demonstration and must not be committed to this repository.
 
-Open **Run analysis** in the sidebar. You can start with [`examples/counts.csv`](examples/counts.csv) and [`examples/metadata.csv`](examples/metadata.csv), then select `condition`, `control`, and `treated`. The Docker backend contains the pinned Bioconductor execution environment.
+Open **Example** to run the complete synthetic workflow, including the local webR methods. For a real count matrix, open **Controlled R runner** in the sidebar. You can start with [`examples/counts.csv`](examples/counts.csv) and [`examples/metadata.csv`](examples/metadata.csv), then select `condition`, `control`, and `treated`. The Docker backend contains the pinned Bioconductor execution environment.
 
 See [the controlled execution guide](docs/EXECUTION_LAYER.md) for the accepted CSV format, limits, security boundary, and method-extension process.
 
@@ -81,7 +82,7 @@ npm test
 .venv/bin/pytest backend/tests
 ```
 
-The hosted application is frontend-contained unless the repository variable `BIOTRUST_API_URL` points to an authenticated controlled runner whose CORS policy explicitly permits the GitHub Pages origin. Do not configure a public unauthenticated endpoint for private research data. The hosted neural engine operates only on the generated synthetic cohort and performs exploratory prediction; it is not a causal, mechanistic, diagnostic, or biomarker-validation tool. Count-native edgeR and DESeq2 execution remains inside the controlled R service. Custom Method Cards document methods but do not make arbitrary code executable.
+The hosted application is frontend-contained unless the repository variable `BIOTRUST_API_URL` points to an authenticated controlled runner whose CORS policy explicitly permits the GitHub Pages origin. The webR engine downloads an R WebAssembly runtime and executes the synthetic matrix locally in the browser; it does not upload that matrix. Do not configure a public unauthenticated endpoint for private research data. The hosted neural engine operates only on the generated synthetic cohort and performs exploratory prediction; it is not a causal, mechanistic, diagnostic, or biomarker-validation tool. Count-native edgeR and DESeq2 execution remains inside the controlled R service because the public browser module uses transformed-count `stats` methods, not Bioconductor substitutes. Custom Method Cards document methods but do not make arbitrary code executable.
 
 ## Ownership and permitted use
 

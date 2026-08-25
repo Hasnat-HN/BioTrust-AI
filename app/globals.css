@@ -1302,6 +1302,10 @@ body { font-size: 15px; }
 
 /* Researcher-controlled melanoma workflow */
 .example-page, .analysis-planner-view, .execution-workflow-view { padding-bottom: 80px; }
+.example-page > .example-workflow-anchor { scroll-margin-top: 82px; }
+.example-page > .example-workflow-anchor > .analysis-planner-view,
+.example-page > .example-workflow-anchor > .execution-workflow-view { width: 100%; padding: 72px 0 0; animation: none; }
+.example-page > .example-workflow-anchor + .example-workflow-anchor { margin-top: 54px; border-top: 1px solid var(--line); }
 .example-hero { display: grid; grid-template-columns: 1.15fr .85fr; gap: 52px; align-items: center; padding: 68px 0 54px; }
 .example-hero h1 { max-width: 760px; margin: 12px 0 18px; font: 500 clamp(44px, 5vw, 72px)/.98 Georgia, serif; letter-spacing: -2px; }
 .example-hero > div > p { max-width: 720px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.72; }
@@ -1342,6 +1346,8 @@ body { font-size: 15px; }
 .covariate-strip span { padding: 5px 7px; border: 1px solid var(--line); border-radius: 4px; background: var(--cream); font-size: 8px; font-weight: 700; }
 .analysis-module-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-top: 23px; }
 .analysis-module-grid > button { position: relative; min-height: 310px; padding: 22px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--cream); text-align: left; }
+.analysis-module-grid > button:focus-visible,
+.method-choice-grid > button:focus-visible { outline: 3px solid color-mix(in srgb, var(--teal) 65%, transparent); outline-offset: 3px; }
 .analysis-module-grid > button:hover { border-color: #536961; }
 .analysis-module-grid > button.selected { border-color: #5d9c84; box-shadow: inset 0 0 0 1px #5d9c84; background: linear-gradient(145deg, #0d1915, var(--cream)); }
 .analysis-module-grid > button > b { position: absolute; top: 18px; right: 18px; display: grid; place-items: center; width: 27px; height: 27px; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); }
@@ -1353,6 +1359,16 @@ body { font-size: 15px; }
 .analysis-module-grid dl div { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .analysis-module-grid dt { margin-bottom: 4px; color: var(--muted); font-size: 8px; font-weight: 800; text-transform: uppercase; }
 .analysis-module-grid dd { margin: 0; font-size: 9px; line-height: 1.5; }
+.r-method-builder code { display: block; min-height: 34px; margin: 12px 0 0; color: #a8d8c7; font: 700 9px/1.5 var(--font-geist-mono), monospace; }
+.r-runtime-note { display: grid; grid-template-columns: 48px 1fr; gap: 15px; align-items: center; margin-top: 18px; padding: 17px; border: 1px solid #436758; border-radius: 10px; background: #0a1511; }
+.r-runtime-note > span { display: grid; place-items: center; width: 45px; height: 45px; border-radius: 50%; color: #07120e; background: #8ec9b3; font: 900 18px/1 var(--font-geist-mono), monospace; }
+.r-runtime-note p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.r-runtime-note strong { display: block; margin-bottom: 3px; color: var(--ink); }
+.r-execution-results { margin-top: 24px; padding: 28px; border: 1px solid #4f806d; border-radius: 14px; background: linear-gradient(145deg, #08130f, var(--paper)); }
+.r-execution-results .results-title { margin-bottom: 22px; }
+.r-execution-results .method-result-cards { margin-bottom: 20px; }
+.r-execution-boundary { display: grid; gap: 7px; margin-top: 18px; padding: 15px 17px; border: 1px solid var(--line); border-radius: 9px; background: var(--cream); }
+.r-execution-boundary p { display: grid; grid-template-columns: 18px 1fr; gap: 8px; margin: 0; color: #b9a06d; font-size: 10px; line-height: 1.5; }
 .dge-method-builder > header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
 .dge-method-builder > header > strong { padding: 7px 9px; border-radius: 4px; color: #9bd2be; background: #153026; font: 800 9px/1 var(--font-geist-mono), monospace; white-space: nowrap; }
 .comparison-activated, .single-method-note { display: flex; gap: 13px; align-items: flex-start; margin-top: 14px; padding: 15px; border: 1px solid #345e4f; border-radius: 8px; background: #0f241d; }

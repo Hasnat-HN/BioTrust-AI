@@ -7,12 +7,20 @@ const appSource = await readFile(new URL("../app/MelanomaCaseStudyView.tsx", imp
 const engineSource = await readFile(new URL("../app/melanomaDemo.ts", import.meta.url), "utf8");
 const methodSource = await readFile(new URL("../app/melanomaMethods.ts", import.meta.url), "utf8");
 const workflowSource = await readFile(new URL("../app/melanomaWorkflow.ts", import.meta.url), "utf8");
+const webRSource = await readFile(new URL("../app/webRAnalysis.ts", import.meta.url), "utf8");
 
 function executeFixture() {
   const moduleUrl = new URL("../app/melanomaDemo.ts", import.meta.url).href;
   const methodsUrl = new URL("../app/melanomaMethods.ts", import.meta.url).href;
   const expression = `Promise.all([import(${JSON.stringify(moduleUrl)}),import(${JSON.stringify(methodsUrl)})]).then(([m,x]) => { const {dataset,result}=m.runSyntheticMelanomaAnalysis(); const exploration=x.exploreMelanomaDataset(dataset); const comparison=x.runDgeMethodComparison(dataset,result,["adjusted_ols","welch_t","wilcoxon"]); const single=x.runDgeMethodComparison(dataset,result,["adjusted_ols"]); const neural=x.runNeuralIntegration(dataset); const synthesis=x.buildComparisonSynthesis(comparison,neural); const singleSynthesis=x.buildComparisonSynthesis(single); console.log(JSON.stringify({samples:dataset.samples.length,features:dataset.featureIds.length,responders:result.dataset.responder_count,primary:result.primary.response_effect,sensitivity:result.sensitivity.response_effect,hashes:result.hashes,first:dataset.samples[0],connections:synthesis.connections.length,zeroRate:exploration.matrix.zero_rate,runs:comparison.runs.map((run)=>run.method.id),pairwise:comparison.pairwise,consensus:comparison.consensus_features.length,neural,single:{pairwise:single.pairwise.length,summary:singleSynthesis.summary,connections:singleSynthesis.connections.length}})); })`;
   return JSON.parse(execFileSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", expression], { encoding: "utf8" }));
+}
+
+function executeRFixture() {
+  const moduleUrl = new URL("../app/melanomaDemo.ts", import.meta.url).href;
+  const webRUrl = new URL("../app/webRAnalysis.ts", import.meta.url).href;
+  const expression = `Promise.all([import(${JSON.stringify(moduleUrl)}),import(${JSON.stringify(webRUrl)})]).then(async ([demo,r]) => { const result=await r.runWebRAnalysis(demo.generateSyntheticMelanomaDataset(),["r_adjusted_lm"]); console.log(JSON.stringify({engine:result.engine,rVersion:result.r_version,stats:result.package_versions.stats,methods:result.methods.map((run)=>({id:run.method.id,rows:run.results.length,significant:run.significant_count}))})); process.exit(0); }).catch((error)=>{ console.error(error); process.exit(1); })`;
+  return JSON.parse(execFileSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", expression], { encoding: "utf8", timeout: 30000 }));
 }
 
 test("generates a deterministic multivariable synthetic melanoma fixture", () => {
@@ -35,18 +43,18 @@ test("generates a deterministic multivariable synthetic melanoma fixture", () =>
   assert.doesNotMatch(fixture.single.summary, /NaN/);
 });
 
-test("keeps the melanoma example separate from planning and execution", () => {
-  assert.match(appSource, /NO ANALYSIS RUNS HERE/);
-  assert.match(appSource, /Those decisions belong to the researcher in/);
-  assert.match(appSource, /Build an analysis plan/);
+test("keeps selection, execution, and results together inside Example", () => {
+  assert.match(appSource, /Choose the methods and run the complete example here/);
+  assert.match(appSource, /id="example-plan"/);
+  assert.match(appSource, /id="example-run"/);
   assert.match(appSource, /Choose exactly what will run/);
-  assert.match(appSource, /Confirm plan and continue/);
+  assert.match(appSource, /Confirm selections and unlock Run/);
   assert.match(appSource, /if \(!plan\.confirmed\)/);
   assert.match(appSource, /Results sealed/);
 });
 
 test("allows analysis modules and one or more DGE methods to be researcher-selected", () => {
-  for (const analysisModule of ["dge", "programs", "purity", "neural"]) assert.match(workflowSource, new RegExp(`id: "${analysisModule}"`));
+  for (const analysisModule of ["dge", "r_dge", "programs", "purity", "neural"]) assert.match(workflowSource, new RegExp(`id: "${analysisModule}"`));
   for (const method of ["adjusted_ols", "welch_t", "wilcoxon"]) assert.match(methodSource, new RegExp(`id: "${method}"`));
   assert.match(appSource, /Select any analysis modules you want to run/);
   assert.match(appSource, /One method is allowed/);
@@ -54,10 +62,23 @@ test("allows analysis modules and one or more DGE methods to be researcher-selec
   assert.match(appSource, /Only researcher-selected methods appear below/);
 });
 
+test("runs genuine R stats package analysis through webR", () => {
+  const fixture = executeRFixture();
+  assert.equal(fixture.engine, "webR WebAssembly");
+  assert.match(fixture.rVersion, /^R version /);
+  assert.match(fixture.stats, /^\d+\.\d+/);
+  assert.deepEqual(fixture.methods.map((method) => method.id), ["r_adjusted_lm"]);
+  assert.equal(fixture.methods[0].rows, 1200);
+  assert.ok(fixture.methods[0].significant > 0);
+  assert.match(webRSource, /stats::model\.matrix/);
+  assert.match(webRSource, /stats::wilcox\.test/);
+  assert.match(webRSource, /stats::p\.adjust/);
+});
+
 test("declares complex covariates and honest method boundaries", () => {
   for (const term of ["age_years", "recorded_sex", "disease_stage", "biopsy_site", "prior_systemic_therapy", "tumor_purity"]) assert.match(engineSource, new RegExp(term));
   assert.match(methodSource, /Benjamini-Hochberg|bhAdjust/);
-  assert.match(appSource, /public browser will not pretend to execute/i);
+  assert.match(appSource, /will not pretend that.*edgeR or DESeq2/i);
   assert.match(workflowSource, /agreement is not replication/i);
 });
 
@@ -75,7 +96,7 @@ function fixtureForNeural() {
 }
 
 test("offers the full evidence package after execution", () => {
-  for (const label of ["Metadata CSV", "Counts CSV", "Selected DGE CSV", "Plan audit JSON", "Analysis PDF"]) assert.match(appSource, new RegExp(label));
+  for (const label of ["Metadata CSV", "Counts CSV", "Selected DGE CSV", "R results CSV", "Plan audit JSON", "Analysis PDF"]) assert.match(appSource, new RegExp(label));
 });
 
 test("creates a valid synthetic melanoma report", async () => {

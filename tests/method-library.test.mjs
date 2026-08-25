@@ -52,10 +52,11 @@ test("sidebar stays focused on navigation without inventing a researcher identit
 });
 
 test("the public demonstration begins empty and reveals results only after an explicit synthetic run", () => {
-  assert.match(appSource, /useState<View>\("overview"\)/);
+  assert.match(appSource, /useState<View>\("how"\)/);
   assert.match(appSource, /label: "How it works"/);
   assert.match(appSource, /label: "Example"/);
-  assert.match(melanomaSource, /NO ANALYSIS RUNS HERE/);
+  assert.doesNotMatch(appSource, /label: "Analysis plan"|label: "Run analysis"/);
+  assert.match(melanomaSource, /YOU CONTROL THE RUN/);
   assert.match(melanomaSource, /Run my analysis plan/);
   assert.match(melanomaSource, /Results sealed/);
   assert.match(melanomaSource, /plan\.confirmed/);
@@ -78,12 +79,12 @@ test("explains the complete workflow with one consistent synthetic example", () 
   assert.match(howSource, /The AI advises\. The researcher decides/);
   assert.match(howSource, /Synthetic melanoma RNA-seq/);
   assert.match(howSource, /The researcher selects feature-level DGE/);
-  assert.match(howSource, /Adjusted OLS, Welch, Wilcoxon/);
+  assert.match(howSource, /genuine R stats package functions/);
   assert.match(howSource, /Only the confirmed modules and methods execute/);
   assert.match(howSource, /Suggestion is never confused with authorization/);
   assert.match(howSource, /Five-fold neural integration/);
   assert.match(appSource, /className="run-progress"/);
   assert.match(melanomaSource, /AI METHOD GUIDE · LOCAL RULES/);
-  assert.match(melanomaSource, /researcher-selected plan/);
+  assert.match(melanomaSource, /select the example analysis/);
   assert.doesNotMatch(appSource, /Mock provider/);
 });

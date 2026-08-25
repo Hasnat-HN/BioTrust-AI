@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import type { InterpretationConnection, MelanomaAnalysisResult } from "./melanomaDemo.ts";
 import { buildComparisonSynthesis, type DgeMethodComparison, type NeuralIntegrationResult } from "./melanomaMethods.ts";
 import { melanomaResearchQuestion, type MelanomaAnalysisModuleId, type MelanomaWorkflowPlan } from "./melanomaWorkflow.ts";
+import type { WebRExecutionResult } from "./webRAnalysis.ts";
 
 const ink: [number, number, number] = [29, 38, 42];
 const muted: [number, number, number] = [85, 99, 103];
@@ -54,16 +55,18 @@ type MelanomaReportOptions = {
   plan?: MelanomaWorkflowPlan;
   comparison?: DgeMethodComparison;
   neural?: NeuralIntegrationResult;
+  rExecution?: WebRExecutionResult;
 };
 
 const analysisLabels: Record<MelanomaAnalysisModuleId, string> = {
   dge: "Feature-level DGE",
+  r_dge: "R package DGE",
   programs: "TME program summary",
   purity: "Tumor-purity sensitivity",
   neural: "Neural integration",
 };
 
-function buildSelectedAnalysisSynthesis(result: MelanomaAnalysisResult, analyses: Set<MelanomaAnalysisModuleId>, neural?: NeuralIntegrationResult) {
+function buildSelectedAnalysisSynthesis(result: MelanomaAnalysisResult, analyses: Set<MelanomaAnalysisModuleId>, neural?: NeuralIntegrationResult, rExecution?: WebRExecutionResult) {
   const connections: InterpretationConnection[] = [{
     id: "D1",
     kind: "evidence",
@@ -103,6 +106,16 @@ function buildSelectedAnalysisSynthesis(result: MelanomaAnalysisResult, analyses
       evidence_refs: ["neural_integration.auc", "neural_integration.balanced_accuracy"],
     });
   }
+  if (analyses.has("r_dge") && rExecution) {
+    connections.push({
+      id: "R1",
+      kind: "evidence",
+      title: "Selected R package execution",
+      finding: `${rExecution.methods.length} selected stats package method${rExecution.methods.length === 1 ? "" : "s"} ran in ${rExecution.r_version}; discovery counts range from ${Math.min(...rExecution.methods.map((run) => run.significant_count))} to ${Math.max(...rExecution.methods.map((run) => run.significant_count))}.`,
+      implication: "This is a genuine local R execution record, but transformed-count stats methods are not count-native edgeR or DESeq2 analyses.",
+      evidence_refs: ["r_package_execution.r_version", "r_package_execution.methods", "researcher_plan.r_methods"],
+    });
+  }
   connections.push({
     id: "B1",
     kind: "boundary",
@@ -119,12 +132,21 @@ function buildSelectedAnalysisSynthesis(result: MelanomaAnalysisResult, analyses
 }
 
 export function createMelanomaReport(result: MelanomaAnalysisResult, options: MelanomaReportOptions = {}): jsPDF {
-  const { plan, comparison, neural } = options;
+  const { plan, comparison, neural, rExecution } = options;
   const purityThreshold = plan?.purity_threshold ?? 0.5;
   const selected = new Set<MelanomaAnalysisModuleId>(plan?.analyses ?? ["dge", "programs", "purity", ...(neural ? ["neural" as const] : [])]);
-  const interpretation = comparison ? buildComparisonSynthesis(comparison, neural) : buildSelectedAnalysisSynthesis(result, selected, neural);
+  const comparisonInterpretation = comparison ? buildComparisonSynthesis(comparison, neural) : null;
+  const selectedInterpretation = buildSelectedAnalysisSynthesis(result, selected, neural, rExecution);
+  const interpretation = comparisonInterpretation
+    ? {
+        ...comparisonInterpretation,
+        summary: `${comparisonInterpretation.summary}${rExecution ? ` ${rExecution.methods.length} selected R stats package method${rExecution.methods.length === 1 ? "" : "s"} also completed in ${rExecution.r_version}.` : ""}`,
+        connections: rExecution ? [...comparisonInterpretation.connections, ...selectedInterpretation.connections.filter((connection) => connection.id === "R1")] : comparisonInterpretation.connections,
+      }
+    : selectedInterpretation;
   const displayedFeatureResults = comparison?.runs.find((run) => run.method.id === comparison.recommendation.method_id)?.results ?? comparison?.runs[0]?.results ?? [];
   const selectedDgeNames = comparison?.runs.map((run) => run.method.short_name).join(", ") ?? "Not selected";
+  const selectedRNames = rExecution?.methods.map((run) => run.method.short_name).join(", ") ?? (selected.has("r_dge") ? "Selected but no completed R output" : "Not selected");
   const selectedAnalysisNames = [...selected].map((id) => analysisLabels[id]).join(", ");
   const supportedWording = comparison?.runs.some((run) => run.method.id === "adjusted_ols")
     ? selected.has("purity")
@@ -178,6 +200,7 @@ export function createMelanomaReport(result: MelanomaAnalysisResult, options: Me
     body: [
       ["Selected analyses", selectedAnalysisNames],
       ["Selected DGE methods", selected.has("dge") ? selectedDgeNames : "DGE not selected"],
+      ["Selected R methods", selected.has("r_dge") ? selectedRNames : "R package DGE not selected"],
       ["Declared covariates", "Age, recorded sex, stage, biopsy site, prior therapy, tumor purity, and sequencing batch"],
       ["Purity setting", selected.has("purity") ? `Repeat the adjusted program model among tumors with purity >= ${purityThreshold.toFixed(2)}.` : "Tumor-purity sensitivity not selected"],
       ["Decision record", "The local guide advised on suitability; the researcher selected and confirmed every executed module and method."],
@@ -252,6 +275,36 @@ export function createMelanomaReport(result: MelanomaAnalysisResult, options: Me
     const neuralBoundaryY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
     section(doc, "Interpretation boundary", neuralBoundaryY);
     paragraph(doc, "Internal cross-validation is not external replication. Weight-path sensitivity is not causal or biological importance, and neural performance does not validate a clinical biomarker.", 16, neuralBoundaryY + 9, 178, 8, [126, 66, 59]);
+  }
+
+  if (rExecution && selected.has("r_dge")) {
+    doc.addPage();
+    section(doc, "Genuine R package execution", 17);
+    paragraph(doc, "The synthetic matrix was copied into the browser-local webR filesystem and processed by the selected R stats package functions. No matrix was uploaded.", 16, 27, 178, 7.6);
+    autoTable(doc, {
+      startY: 37,
+      margin: { left: 16, right: 16 },
+      styles: { font: "helvetica", fontSize: 7.4, cellPadding: 2.6, textColor: muted, lineColor: line, lineWidth: 0.1 },
+      headStyles: { fillColor: [24, 62, 56], textColor: [255, 255, 255] },
+      head: [["R method", "Package", "Function", "Adjusted", "FDR < 0.05", "Higher", "Lower"]],
+      body: rExecution.methods.map((run) => [run.method.short_name, `${run.method.package_name} ${rExecution.package_versions[run.method.package_name]}`, run.method.function_name, run.method.adjusts_covariates ? "Yes" : "No", String(run.significant_count), String(run.positive_count), String(run.negative_count)]),
+    });
+    const rMetadataY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+    label(doc, "Runtime", 16, rMetadataY);
+    paragraph(doc, `${rExecution.r_version} | ${rExecution.engine}`, 16, rMetadataY + 7, 178, 8, ink);
+    const preferredRRun = rExecution.methods.find((run) => run.method.id === "r_adjusted_lm") ?? rExecution.methods[0];
+    section(doc, `Top results - ${preferredRRun.method.short_name}`, rMetadataY + 20);
+    autoTable(doc, {
+      startY: rMetadataY + 28,
+      margin: { left: 12, right: 12 },
+      styles: { font: "helvetica", fontSize: 6.6, cellPadding: 2, textColor: muted, lineColor: line, lineWidth: 0.1 },
+      headStyles: { fillColor: [32, 54, 61], textColor: [255, 255, 255] },
+      head: [["Feature", "Program", "Effect", "R statistic", "p-value", "BH FDR"]],
+      body: preferredRRun.results.slice(0, 12).map((row) => [row.feature_id, row.program, fmt(row.response_effect, 3), fmt(row.statistic), fmtP(row.p_value), fmtP(row.adjusted_p_value)]),
+    });
+    const rBoundaryY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 11;
+    label(doc, "Execution boundary", 16, rBoundaryY, [151, 70, 60]);
+    paragraph(doc, "These are genuine R stats package results from transformed counts. They are not edgeR or DESeq2 and do not establish external replication.", 16, rBoundaryY + 7, 178, 7.4, [126, 66, 59]);
   }
 
   doc.addPage();
@@ -374,6 +427,7 @@ export function createMelanomaReport(result: MelanomaAnalysisResult, options: Me
       ["Checksum algorithm", result.hashes.algorithm],
       ["Selected analyses", selectedAnalysisNames],
       ["Selected browser DGE", selected.has("dge") ? selectedDgeNames : "Not selected"],
+      ["Selected R methods", selected.has("r_dge") ? selectedRNames : "Not selected"],
       ["Production recommendation", "edgeR quasi-likelihood + CAMERA in a controlled R runner"],
     ],
   });
