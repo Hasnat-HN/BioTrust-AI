@@ -44,7 +44,13 @@ test("generates a deterministic multivariable synthetic melanoma fixture", () =>
 });
 
 test("keeps selection, execution, and results together inside Example", () => {
-  assert.match(appSource, /Run one melanoma RNA-seq question from data profile to report/);
+  assert.match(appSource, /Load the built-in study, inspect it, then choose what runs/);
+  assert.match(appSource, /Load built-in example data/);
+  assert.match(appSource, /synthetic-melanoma-counts\.csv/);
+  assert.match(appSource, /synthetic-melanoma-metadata\.csv/);
+  assert.match(appSource, /STEP 2 · AUTOMATIC EXPLORATION/);
+  assert.match(appSource, /setExploration\(exploreMelanomaDataset\(dataset\)\)/);
+  assert.match(appSource, /\{exploration && <section id="example-plan"/);
   assert.match(appSource, /id="example-plan"/);
   assert.match(appSource, /id="example-run"/);
   assert.match(appSource, /Choose exactly what will run/);
@@ -56,9 +62,12 @@ test("keeps selection, execution, and results together inside Example", () => {
 test("allows analysis modules and one or more DGE methods to be researcher-selected", () => {
   for (const analysisModule of ["dge", "r_dge", "programs", "purity", "neural"]) assert.match(workflowSource, new RegExp(`id: "${analysisModule}"`));
   for (const method of ["adjusted_ols", "welch_t", "wilcoxon"]) assert.match(methodSource, new RegExp(`id: "${method}"`));
-  assert.match(appSource, /Select any analysis modules you want to run/);
-  assert.match(appSource, /One method is allowed/);
-  assert.match(appSource, /Method comparison activated/);
+  assert.match(appSource, /Select one option—or combine several/);
+  assert.match(appSource, /Every method card is active now/);
+  assert.match(appSource, /setAnalysisState\("dge", dgeMethods\.length > 0\)/);
+  assert.match(appSource, /setAnalysisState\("r_dge", rMethods\.length > 0\)/);
+  assert.doesNotMatch(appSource, /\{plan\.analyses\.includes\("dge"\) && <section className="planner-section dge-method-builder"/);
+  assert.match(appSource, /Browser method comparison activated/);
   assert.match(appSource, /Only researcher-selected methods appear below/);
 });
 

@@ -398,7 +398,7 @@ function ProvenanceView({ onExport }: { onExport: () => void }) {
 }
 
 function ResultsGate({ navigate, destination }: { navigate: (view: View) => void; destination: string }) {
-  return <div className="view"><section className="results-gate"><span className="results-gate-mark">◇</span><span className="page-kicker">Results not generated</span><h1>{destination} will appear after a run.</h1><p>The public demonstration starts without preloaded outcomes. Open Example, select the analyses and methods, confirm them, and press Run on that same page.</p><button className="primary-button" onClick={() => navigate("example")}>Open interactive Example <span>→</span></button></section></div>;
+  return <div className="view"><section className="results-gate"><span className="results-gate-mark">◇</span><span className="page-kicker">Results not generated</span><h1>{destination} will appear after a run.</h1><p>The public demonstration starts without preloaded outcomes. Open Example, load its built-in files, review the automatic exploration, select the analyses and methods, confirm them, and press Run on that same page.</p><button className="primary-button" onClick={() => navigate("example")}>Open interactive Example <span>→</span></button></section></div>;
 }
 
 export default function BioTrustApp() {

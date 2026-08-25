@@ -56,7 +56,8 @@ test("the public demonstration begins empty and reveals results only after an ex
   assert.match(appSource, /label: "How it works"/);
   assert.match(appSource, /label: "Example"/);
   assert.doesNotMatch(appSource, /label: "Analysis plan"|label: "Run analysis"/);
-  assert.match(melanomaSource, /YOU CONTROL THE RUN/);
+  assert.match(melanomaSource, /DATA NOT LOADED/);
+  assert.match(melanomaSource, /Load built-in example data/);
   assert.match(melanomaSource, /Run my analysis plan/);
   assert.match(melanomaSource, /Results sealed/);
   assert.match(melanomaSource, /plan\.confirmed/);
@@ -78,13 +79,13 @@ test("defaults to black and uses one neutral appearance control", () => {
 test("explains the complete workflow with one consistent synthetic example", () => {
   assert.match(howSource, /ONE BUILT-IN EXAMPLE/);
   assert.match(howSource, /Synthetic melanoma RNA-seq/);
-  assert.match(howSource, /load your own count matrix and sample metadata/);
-  assert.match(howSource, /genuine R methods/);
-  assert.match(howSource, /Only confirmed methods run/);
+  assert.match(howSource, /already contains a count matrix and sample metadata/);
+  assert.match(howSource, /JavaScript method, R method/);
+  assert.match(howSource, /Only the selected choices run/);
   assert.match(howSource, /Suggestion is never confused with authorization/);
   assert.match(howSource, /PDF, CSV, and audit export/);
   assert.match(appSource, /className="run-progress"/);
   assert.match(melanomaSource, /AI METHOD GUIDE · LOCAL RULES/);
-  assert.match(melanomaSource, /Example · build the plan/);
+  assert.match(melanomaSource, /Step 3 · choose the analysis/);
   assert.doesNotMatch(appSource, /Mock provider/);
 });

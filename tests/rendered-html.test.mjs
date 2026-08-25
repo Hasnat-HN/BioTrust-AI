@@ -18,7 +18,7 @@ test("server-renders the BioTrust AI evidence workspace", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
   assert.match(html, /BioTrust AI/);
-  assert.match(html, /Understand the data, choose the method/);
+  assert.match(html, /Load the study, inspect it automatically/);
   assert.match(html, /Open Example/);
   assert.match(html, /How it works/);
   assert.match(html, /Example/);

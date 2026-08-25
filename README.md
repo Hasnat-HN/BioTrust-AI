@@ -14,7 +14,7 @@ The aim is simple: AI should help researchers reason through an analysis, not be
 
 The public application runs entirely in the browser. It provides one complete synthetic example and a working **Analyze your data** path that reads a count matrix and sample metadata locally, profiles the study, lets the researcher choose the question and methods, executes selected JavaScript and R `stats` analyses, compares them, and exports PDF, CSV, and JSON records. Uploaded files are not sent to BioTrust or an external AI service.
 
-The public navigation deliberately has only three destinations: **How it works**, **Example**, and **Analyze your data**. Example is the only built-in demonstration and uses a synthetic melanoma tumor-microenvironment study. Dataset inspection, selectable analyses, genuine browser-R methods, guidance, confirmation, execution, interpretation, and downloads stay together on that page.
+The public navigation deliberately has only three destinations: **How it works**, **Example**, and **Analyze your data**. Example is the only built-in demonstration and uses a synthetic melanoma tumor-microenvironment study. Its bundled count matrix and metadata are loaded with one button, descriptive exploration runs automatically, and every JavaScript method, R method, supporting analysis, confirmation, execution, interpretation, and download stays together on that page.
 
 ## What is implemented
 
@@ -40,7 +40,7 @@ docker compose up --build
 
 Open `http://localhost:3000`. Raw research data are not required by the synthetic demonstration and must not be committed to this repository.
 
-Open **Example** to run the complete synthetic workflow. Open **Analyze your data** to load a real count matrix and metadata directly in the browser, inspect the structure, define the contrast and covariates, and choose JavaScript or R `stats` methods. The public browser path is limited to 500 samples and 5,000 features. The Docker backend contains the pinned Bioconductor environment for count-native edgeR and DESeq2 execution.
+Open **Example**, load its two bundled files, review the automatic exploration, then choose and confirm the analyses and methods to run. Open **Analyze your data** to load a real count matrix and metadata directly in the browser, inspect the structure, define the contrast and covariates, and choose JavaScript or R `stats` methods. The public browser path is limited to 500 samples and 5,000 features. The Docker backend contains the pinned Bioconductor environment for count-native edgeR and DESeq2 execution.
 
 See [the controlled execution guide](docs/EXECUTION_LAYER.md) for the accepted CSV format, limits, security boundary, and method-extension process.
 
