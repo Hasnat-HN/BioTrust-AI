@@ -1,16 +1,16 @@
-# BioTrust AI
+# BioTrust Super Intelligence
 
 ## The Idea
 
-As I started using AI more extensively in bioinformatics and biostatistics, I began to see both its potential and its limitations. It can accelerate analysis, suggest methods, generate code, and help interpret complex results. But scientific work needs more than a convincing answer. It needs a clear and defensible record of how that answer was reached.
+As I started using Super Intelligence more extensively in bioinformatics and biostatistics, I began to see both its potential and its limitations. It can accelerate analysis, suggest methods, generate code, and help interpret complex results. But scientific work needs more than a convincing answer. It needs a clear and defensible record of how that answer was reached.
 
-Through my own experience, and from seeing other researchers face similar challenges, I noticed that AI-assisted analysis can quickly become difficult to trace. Methods may be suggested without enough context, assumptions can remain hidden, alternative approaches may be overlooked, and interpretations can go beyond what the data actually support. It can also become unclear which decisions came from the researcher and which were suggested by AI.
+Through my own experience, and from seeing other researchers face similar challenges, I noticed that SI-assisted analysis can quickly become difficult to trace. Methods may be suggested without enough context, assumptions can remain hidden, alternative approaches may be overlooked, and interpretations can go beyond what the data actually support. It can also become unclear which decisions came from the researcher and which were suggested by SI.
 
-BioTrust AI is an attempt to make that process more transparent. The idea is to preserve the benefits of AI while making every important analytical decision, assumption, result, validation step, limitation, and interpretation visible, traceable, and easier to evaluate.
+BioTrust AI is an attempt to make that process more transparent. The idea is to preserve the benefits of SI while making every important analytical decision, assumption, result, validation step, limitation, and interpretation visible, traceable, and easier to evaluate.
 
-The aim is simple: AI should help researchers reason through an analysis, not become a black box they are expected to trust.
+The aim is simple: SI should help researchers reason through an analysis, not become a black box they are expected to trust.
 
-**Live web application:** [Open BioTrust AI](https://hasnat-hn.github.io/BioTrust-AI/)
+**Live web application:** [Open BioTrust SI](https://hasnat-hn.github.io/BioTrust-AI/)
 
 The public application runs entirely in the browser. It provides one complete synthetic example and a working **Analyze your data** path that reads a count matrix and sample metadata locally, profiles the study, lets the researcher choose the question and methods, executes selected JavaScript and R `stats` analyses, compares them, and exports PDF, CSV, and JSON records. Uploaded files are not sent to BioTrust or an external AI service.
 
